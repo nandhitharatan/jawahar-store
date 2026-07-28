@@ -1,0 +1,791 @@
+{% extends "base.html" %}
+{% block title %}Products – Jawahar Enterprises{% endblock %}
+{% block page_title %}Products{% endblock %}
+
+{% block extra_css %}
+<style>
+  .products-toolbar {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .products-toolbar .search-wrap { flex: 1; min-width: 200px; position: relative; }
+  .products-toolbar .search-wrap input { width: 100%; padding: 9px 14px 9px 36px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13.5px; font-family: var(--font); outline: none; }
+  .products-toolbar .search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+  .products-toolbar .search-wrap .si { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 14px; pointer-events: none; }
+
+  .product-img-thumb {
+    width: 42px; height: 42px; border-radius: 6px;
+    object-fit: cover; background: var(--surface-2);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: var(--text-light);
+  }
+  .sizes-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .size-tag { padding: 2px 7px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; color: var(--text-muted); font-weight: 500; }
+  .size-tag.low { background: rgba(232,160,32,0.12); color: var(--warning); border-color: rgba(232,160,32,0.3); }
+  .size-tag.out { background: rgba(216,48,48,0.08); color: var(--danger); border-color: rgba(216,48,48,0.15); }
+
+  .action-btns { display: flex; gap: 6px; }
+  .btn-edit { background: rgba(45,111,176,0.1); color: var(--info); border: 1px solid rgba(45,111,176,0.2); }
+  .btn-edit:hover { background: var(--info); color: #fff; }
+  .btn-del { background: rgba(216,48,48,0.08); color: var(--danger); border: 1px solid rgba(216,48,48,0.15); }
+  .btn-del:hover { background: var(--danger); color: #fff; }
+
+  .stock-badge {
+    padding: 3px 9px; border-radius: 12px;
+    font-size: 11px; font-weight: 600;
+  }
+  .stock-good { background: rgba(45,158,107,0.1); color: var(--success); }
+  .stock-low { background: rgba(232,160,32,0.12); color: var(--warning); }
+  .stock-out { background: rgba(216,48,48,0.1); color: var(--danger); }
+
+  /* Add/Edit modal */
+  .modal-lg { max-width: 620px !important; }
+
+  /* Size stock table in modal */
+  .size-stock-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .size-stock-table th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); padding: 6px 10px; background: var(--surface-2); border: 1px solid var(--border); text-align: left; }
+  .size-stock-table td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: middle; }
+  .size-stock-table tr:hover td { background: var(--surface-2); }
+  .size-stock-table .size-label { font-weight: 600; font-size: 13px; }
+  .size-stock-table input[type="number"] { width: 80px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px; font-size: 13px; font-family: var(--font); text-align: center; outline: none; }
+  .size-stock-table input[type="number"]:focus { border-color: var(--accent); }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+  .empty-state .es-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state .es-text { font-size: 14px; margin-bottom: 16px; }
+
+  .pagination { display: flex; gap: 6px; align-items: center; justify-content: flex-end; margin-top: 16px; }
+  .page-btn { padding: 5px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; font-size: 12px; font-weight: 500; }
+  .page-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .page-btn:hover:not(.active) { background: var(--surface-2); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Toolbar -->
+<div class="products-toolbar">
+  <div class="search-wrap">
+    <span class="si">🔍</span>
+    <input type="text" id="product-search" placeholder="Search products…" oninput="applyFilters()">
+  </div>
+  <select class="form-control" id="cat-filter" onchange="applyFilters()" style="width:160px;">
+    <option value="">All Categories</option>
+    {% for cat in categories %}
+    <option value="{{ cat }}">{{ cat }}</option>
+    {% endfor %}
+  </select>
+  <select class="form-control" id="stock-filter" onchange="applyFilters()" style="width:140px;">
+    <option value="">All Stock</option>
+    <option value="low">Low Stock</option>
+    <option value="out">Out of Stock</option>
+    <option value="ok">In Stock</option>
+  </select>
+  <button class="btn btn-primary" onclick="openAddModal()">+ Add Product</button>
+</div>
+
+<!-- Products Table -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">All Products</div>
+    <div style="font-size:12px;color:var(--text-muted);" id="product-count">Loading…</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:52px;">Image</th>
+          <th>Product Name</th>
+          <th>Category</th>
+          <th>Sizes & Stock</th>
+          <th>Price</th>
+          <th>Total Stock</th>
+          <th style="width:100px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="products-tbody">
+        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="padding:12px 16px;border-top:1px solid var(--border);">
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<!-- Add / Edit Product Modal -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Add New Product</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-product-id">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Product Name *</label>
+          <input type="text" class="form-control" id="p-name" placeholder="e.g. Banarasi Silk Saree">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category *</label>
+          <input type="text" class="form-control" id="p-category" placeholder="e.g. Kurtis" list="cat-datalist" onchange="handleCategoryPresetChange(this.value)" oninput="handleCategoryPresetChange(this.value)">
+          <datalist id="cat-datalist">
+            {% for cat in categories %}
+            <option value="{{ cat }}">
+            {% endfor %}
+            <option value="Kurtis">
+            <option value="Palazzo/Pants">
+            <option value="Gowns/Dresses">
+            <option value="Sarees">
+            <option value="Dupattas">
+            <option value="Leggings">
+            <option value="Skirts">
+            <option value="Blouses">
+          </datalist>
+        </div>
+      </div>
+      <div class="form-group" style="max-width:200px;">
+        <label class="form-label">Price (₹) *</label>
+        <input type="number" class="form-control" id="p-price" placeholder="0.00" min="0" step="0.01">
+      </div>
+
+      <!-- Size / Stock Table -->
+      <div class="form-group">
+        <label class="form-label">Stock per Size</label>
+        <table class="size-stock-table">
+          <thead>
+            <tr>
+              <th>Size</th>
+              <th>Stock Qty</th>
+            </tr>
+          </thead>
+          <tbody id="size-stock-tbody">
+            {% for s in ['S', 'M', 'L', 'XL', 'XXL', 'Free Size'] %}
+            <tr data-size="{{ s }}">
+              <td class="size-label">{{ s }}</td>
+              <td><input type="number" min="0" value="0" class="size-stock-input" data-size="{{ s }}"></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">Enter 0 to exclude a size from stock counts.</div>
+      </div>
+
+      <!-- Size Chart Setup Section -->
+      <div class="form-group" style="background:var(--surface-2); padding:16px; border:1px solid var(--border); border-radius:var(--radius); margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div>
+            <div style="font-weight:700; font-size:14px; color:var(--text);">📏 Size Chart Setup</div>
+            <div style="font-size:11.5px; color:var(--text-muted);">Configure custom garment measurements for this product</div>
+          </div>
+          <div style="display:flex; gap:4px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="modal-unit-btn-in" onclick="setModalChartUnit('in')" style="padding:3px 9px; font-size:11px; background:var(--accent); color:#fff;">Inches (in)</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="modal-unit-btn-cm" onclick="setModalChartUnit('cm')" style="padding:3px 9px; font-size:11px;">cm</button>
+          </div>
+        </div>
+
+        <!-- Measurement Checkboxes -->
+        <div style="font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:6px;">1. Select Applicable Measurements</div>
+        
+        <div style="font-size:11px; color:var(--text-muted); margin-top:6px; margin-bottom:4px;">Upper Body:</div>
+        <div class="sizes-list" style="margin-bottom:8px;">
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="bust" onchange="renderModalDynamicChart()"> Bust/Chest</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="across_shoulder" onchange="renderModalDynamicChart()"> Across Shoulder</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="sleeve_length" onchange="renderModalDynamicChart()"> Sleeve Length</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="armhole" onchange="renderModalDynamicChart()"> Armhole</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="neck_width" onchange="renderModalDynamicChart()"> Neck Width</label>
+        </div>
+
+        <div style="font-size:11px; color:var(--text-muted); margin-top:6px; margin-bottom:4px;">Lower Body:</div>
+        <div class="sizes-list" style="margin-bottom:8px;">
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="waist" onchange="renderModalDynamicChart()"> Waist</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="hips" onchange="renderModalDynamicChart()"> Hips</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="inseam_length" onchange="renderModalDynamicChart()"> Inseam Length</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="outseam_length" onchange="renderModalDynamicChart()"> Outseam Length</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="thigh_width" onchange="renderModalDynamicChart()"> Thigh Width</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="knee_width" onchange="renderModalDynamicChart()"> Knee Width</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="bottom_width" onchange="renderModalDynamicChart()"> Bottom Width</label>
+        </div>
+
+        <div style="font-size:11px; color:var(--text-muted); margin-top:6px; margin-bottom:4px;">Length & Other:</div>
+        <div class="sizes-list" style="margin-bottom:12px;">
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="front_length" onchange="renderModalDynamicChart()"> Front Length</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="back_length" onchange="renderModalDynamicChart()"> Back Length</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="dress_length" onchange="renderModalDynamicChart()"> Dress Length</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="kurta_length" onchange="renderModalDynamicChart()"> Kurta Length</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="dupatta_length" onchange="renderModalDynamicChart()"> Dupatta Length</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="dupatta_width" onchange="renderModalDynamicChart()"> Dupatta Width</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="rise" onchange="renderModalDynamicChart()"> Rise</label>
+          <label class="size-tag"><input type="checkbox" class="modal-m-check" value="ankle_width" onchange="renderModalDynamicChart()"> Ankle Width</label>
+        </div>
+
+        <!-- Active Sizes Selection -->
+        <div style="font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:6px;">2. Select Active Sizes</div>
+        <div class="sizes-list" id="modal-size-chips-wrap" style="margin-bottom:12px; align-items:center;">
+          <label class="size-tag"><input type="checkbox" class="modal-sz-check" value="XS" checked onchange="renderModalDynamicChart()"> XS</label>
+          <label class="size-tag"><input type="checkbox" class="modal-sz-check" value="S" checked onchange="renderModalDynamicChart()"> S</label>
+          <label class="size-tag"><input type="checkbox" class="modal-sz-check" value="M" checked onchange="renderModalDynamicChart()"> M</label>
+          <label class="size-tag"><input type="checkbox" class="modal-sz-check" value="L" checked onchange="renderModalDynamicChart()"> L</label>
+          <label class="size-tag"><input type="checkbox" class="modal-sz-check" value="XL" checked onchange="renderModalDynamicChart()"> XL</label>
+          <label class="size-tag"><input type="checkbox" class="modal-sz-check" value="XXL" checked onchange="renderModalDynamicChart()"> XXL</label>
+          <label class="size-tag"><input type="checkbox" class="modal-sz-check" value="Free Size" onchange="renderModalDynamicChart()"> Free Size</label>
+          
+          <div style="display:inline-flex; gap:4px; margin-left:6px;">
+            <input type="text" id="modal-custom-sz-input" placeholder="Custom (e.g. 28)" style="width:100px; padding:4px 8px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addModalCustomSize()" style="padding:4px 8px; font-size:11px;">+ Add Size</button>
+          </div>
+        </div>
+
+        <!-- Size Chart Table -->
+        <div style="font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:6px;">3. Fill Measurements</div>
+        <div style="overflow-x:auto;">
+          <table class="size-stock-table" style="width:100%;">
+            <thead id="modal-sc-thead">
+              <tr><th>Size</th></tr>
+            </thead>
+            <tbody id="modal-sc-tbody">
+              <tr><td style="text-align:center; padding:12px; color:var(--text-muted); font-size:12px;">Select measurements above to enter values</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+
+      <!-- Product Image -->
+      <div class="form-group">
+        <label class="form-label">Product Image (optional)</label>
+        <div id="img-upload-area" style="border:2px dashed var(--border);border-radius:var(--radius-sm);padding:16px;text-align:center;cursor:pointer;transition:border-color 0.15s ease;position:relative;"
+             onclick="document.getElementById('p-image-file').click()"
+             ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+             ondragleave="this.style.borderColor='var(--border)'"
+             ondrop="handleImageDrop(event)">
+          <input type="file" id="p-image-file" accept=".jpg,.jpeg,.png,.webp" style="display:none;" onchange="handleImageSelect(this)">
+          <div id="img-placeholder">
+            <div style="font-size:28px;margin-bottom:6px;">🖼</div>
+            <div style="font-size:13px;font-weight:500;color:var(--text-muted);">Click or drag & drop to upload</div>
+            <div style="font-size:11px;color:var(--text-light);margin-top:3px;">JPG, JPEG, PNG, WEBP</div>
+          </div>
+          <div id="img-preview-wrap" style="display:none;flex-direction:column;align-items:center;gap:8px;">
+            <img id="img-preview" src="" alt="Preview" style="max-height:120px;max-width:100%;border-radius:6px;object-fit:contain;">
+            <span id="img-filename" style="font-size:11px;color:var(--text-muted);"></span>
+            <button type="button" onclick="clearImageSelection(event)" style="font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:4px;background:var(--surface-2);cursor:pointer;color:var(--danger);">✕ Remove</button>
+          </div>
+        </div>
+        <div id="img-existing-wrap" style="display:none;margin-top:8px;align-items:center;gap:10px;">
+          <img id="img-existing" src="" alt="Current" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">
+          <div>
+            <div style="font-size:12px;font-weight:500;">Current image</div>
+            <div style="font-size:11px;color:var(--text-muted);">Upload a new one to replace it</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="save-product-btn" onclick="saveProduct()">Save Product</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <div class="modal-title" style="color:var(--danger)">Delete Product</div>
+      <button class="modal-close" onclick="closeDeleteModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:14px;">Are you sure you want to delete <strong id="delete-product-name"></strong>?</p>
+      <p style="font-size:12.5px;color:var(--text-muted);margin-top:8px;">This action cannot be undone. The product will be removed from inventory.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" id="confirm-delete-btn" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let allProducts = [];
+  let filteredProducts = [];
+  let deleteTargetId = null;
+  const PAGE_SIZE = 15;
+  let currentPage = 1;
+
+  async function loadProducts() {
+    const res = await fetch('/api/products');
+    allProducts = await res.json();
+    applyFilters();
+  }
+
+  function getTotalStock(p) {
+    return (p.sizes || []).reduce((s, sz) => s + (sz.stock || 0), 0);
+  }
+
+  function applyFilters() {
+    const search = document.getElementById('product-search').value.toLowerCase();
+    const cat = document.getElementById('cat-filter').value;
+    const stockF = document.getElementById('stock-filter').value;
+
+    filteredProducts = allProducts.filter(p => {
+      const total = getTotalStock(p);
+      const matchSearch = !search || p.name.toLowerCase().includes(search) || p.category.toLowerCase().includes(search);
+      const matchCat = !cat || p.category === cat;
+      const matchStock = !stockF ||
+        (stockF === 'out' && total === 0) ||
+        (stockF === 'low' && total > 0 && total <= 5) ||
+        (stockF === 'ok' && total > 5);
+      return matchSearch && matchCat && matchStock;
+    });
+
+    currentPage = 1;
+    renderTable();
+  }
+
+  function renderTable() {
+    const total = filteredProducts.length;
+    document.getElementById('product-count').textContent = `${total} product${total !== 1 ? 's' : ''}`;
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const page = filteredProducts.slice(start, start + PAGE_SIZE);
+    const tbody = document.getElementById('products-tbody');
+
+    if (!page.length) {
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="es-icon">👗</div><div class="es-text">No products found</div><button class="btn btn-primary" onclick="openAddModal()">+ Add First Product</button></div></td></tr>`;
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = page.map(p => {
+      const totalStock = getTotalStock(p);
+      const stockClass = totalStock === 0 ? 'stock-out' : (totalStock <= 5 ? 'stock-low' : 'stock-good');
+      const stockLabel = totalStock === 0 ? 'Out of Stock' : (totalStock <= 5 ? `Low: ${totalStock}` : totalStock);
+      const imgEl = p.image_url
+        ? `<img src="${p.image_url}" class="product-img-thumb" alt="${p.name}" onerror="this.style.display='none';this.nextSibling.style.display='flex'"><div class="product-img-thumb" style="display:none;">👗</div>`
+        : `<div class="product-img-thumb">👗</div>`;
+
+      // Sizes with per-size stock tags
+      const sizeTags = (p.sizes || []).map(sz => {
+        const cls = sz.stock === 0 ? 'out' : (sz.stock <= 5 ? 'low' : '');
+        return `<span class="size-tag ${cls}" title="${sz.size}: ${sz.stock} in stock">${sz.size}:${sz.stock}</span>`;
+      }).join('') || '<span style="color:var(--text-light);font-size:12px;">—</span>';
+
+      return `<tr>
+        <td>${imgEl}</td>
+        <td><div style="font-weight:500;font-size:13.5px;">${p.name}</div></td>
+        <td><span class="badge badge-neutral">${p.category}</span></td>
+        <td><div class="sizes-list">${sizeTags}</div></td>
+        <td class="fw-600">₹${parseFloat(p.price).toLocaleString('en-IN')}</td>
+        <td><span class="stock-badge ${stockClass}">${stockLabel}</span></td>
+        <td><div class="action-btns">
+          <button class="btn btn-sm btn-secondary" title="View Size Chart" onclick="openGlobalSizeChartModal(${p.id})">📏</button>
+          <a href="/product/${p.id}/size-chart" class="btn btn-sm btn-secondary" title="Edit Size Chart">📐</a>
+          <button class="btn btn-sm btn-edit" onclick="openEditModal(${p.id})">✏</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+
+    renderPagination(total);
+  }
+
+  function renderPagination(total) {
+    const pages = Math.ceil(total / PAGE_SIZE);
+    const pg = document.getElementById('pagination');
+    if (pages <= 1) { pg.innerHTML = ''; return; }
+    let html = '';
+    for (let i = 1; i <= pages; i++) {
+      html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    pg.innerHTML = html;
+  }
+
+  function goPage(p) { currentPage = p; renderTable(); }
+
+  // ── Size stock helpers ───────────────────────────────────────────────────────
+  function resetSizeStocks() {
+    document.querySelectorAll('.size-stock-input').forEach(inp => inp.value = 0);
+  }
+
+  function getSizesData() {
+    const result = [];
+    document.querySelectorAll('.size-stock-input').forEach(inp => {
+      const size = inp.dataset.size;
+      const stock = parseInt(inp.value) || 0;
+      // Include all sizes (even stock=0, server stores them)
+      result.push({ size, stock });
+    });
+    return result;
+  }
+
+  // ── Size Chart Modal Helpers ──────────────────────────────────────────────────
+  let modalChartUnit = 'in';
+  let modalCustomSizes = [];
+  let modalSizeChartRows = [];
+
+  const CATEGORY_PRESETS = {
+    'kurtis': ['bust', 'across_shoulder', 'front_length', 'kurta_length', 'hips'],
+    'palazzo': ['waist', 'hips', 'inseam_length', 'outseam_length', 'bottom_width'],
+    'pants': ['waist', 'hips', 'inseam_length', 'outseam_length', 'bottom_width'],
+    'bottoms': ['waist', 'hips', 'inseam_length', 'outseam_length', 'bottom_width'],
+    'gowns': ['bust', 'waist', 'hips', 'dress_length', 'across_shoulder'],
+    'dresses': ['bust', 'waist', 'hips', 'dress_length', 'across_shoulder'],
+    'sarees': [],
+    'dupattas': ['dupatta_length', 'dupatta_width'],
+    'leggings': ['waist', 'hips', 'inseam_length', 'ankle_width'],
+    'skirts': ['waist', 'hips', 'front_length'],
+    'blouses': ['bust', 'across_shoulder', 'sleeve_length', 'back_length']
+  };
+
+  function handleCategoryPresetChange(catName) {
+    if (!catName) return;
+    const catLower = catName.trim().toLowerCase();
+    let matchedKeys = null;
+    
+    for (let k in CATEGORY_PRESETS) {
+      if (catLower.includes(k)) {
+        matchedKeys = CATEGORY_PRESETS[k];
+        break;
+      }
+    }
+
+    if (matchedKeys !== null) {
+      document.querySelectorAll('.modal-m-check').forEach(cb => {
+        cb.checked = matchedKeys.includes(cb.value);
+      });
+      renderModalDynamicChart();
+    }
+  }
+
+  function addModalCustomSize() {
+    const input = document.getElementById('modal-custom-sz-input');
+    const val = (input.value || '').trim();
+    if (!val) return;
+    if (!modalCustomSizes.includes(val)) {
+      modalCustomSizes.push(val);
+      renderModalCustomSizeChip(val);
+      renderModalDynamicChart();
+    }
+    input.value = '';
+  }
+
+  function renderModalCustomSizeChip(val) {
+    const wrap = document.getElementById('modal-size-chips-wrap');
+    const label = document.createElement('label');
+    label.className = 'size-tag';
+    label.setAttribute('data-modal-custom-sz', val);
+    label.innerHTML = `<input type="checkbox" class="modal-sz-check" value="${val}" checked onchange="renderModalDynamicChart()"> ${val} <span style="color:var(--danger); cursor:pointer; margin-left:3px; font-weight:700;" onclick="removeModalCustomSize('${val}', event)">×</span>`;
+    wrap.insertBefore(label, wrap.lastElementChild);
+  }
+
+  function removeModalCustomSize(val, event) {
+    if (event) event.stopPropagation();
+    modalCustomSizes = modalCustomSizes.filter(s => s !== val);
+    const el = document.querySelector(`[data-modal-custom-sz="${val}"]`);
+    if (el) el.remove();
+    renderModalDynamicChart();
+  }
+
+  function setModalChartUnit(unit) {
+    if (modalChartUnit === unit) return;
+    updateModalRowsFromInputs();
+    modalChartUnit = unit;
+
+    const btnIn = document.getElementById('modal-unit-btn-in');
+    const btnCm = document.getElementById('modal-unit-btn-cm');
+    if (btnIn && btnCm) {
+      btnIn.style.background = modalChartUnit === 'in' ? 'var(--accent)' : '';
+      btnIn.style.color = modalChartUnit === 'in' ? '#fff' : '';
+      btnCm.style.background = modalChartUnit === 'cm' ? 'var(--accent)' : '';
+      btnCm.style.color = modalChartUnit === 'cm' ? '#fff' : '';
+    }
+
+    renderModalDynamicChart();
+  }
+
+  function updateModalRowsFromInputs() {
+    const trs = document.querySelectorAll('#modal-sc-tbody tr');
+    const factor = modalChartUnit === 'cm' ? 2.54 : 1.0;
+
+    trs.forEach(tr => {
+      const sz = tr.getAttribute('data-size');
+      if (!sz) return;
+      let rowObj = modalSizeChartRows.find(r => r.size === sz);
+      if (!rowObj) {
+        rowObj = { size: sz };
+        modalSizeChartRows.push(rowObj);
+      }
+
+      tr.querySelectorAll('input.modal-sc-input').forEach(inp => {
+        const key = inp.getAttribute('data-key');
+        const rawVal = inp.value.trim();
+        rowObj[key] = rawVal !== '' ? (parseFloat(rawVal) / factor) : null;
+      });
+    });
+  }
+
+  function renderModalDynamicChart() {
+    const checkedMeasures = Array.from(document.querySelectorAll('.modal-m-check:checked')).map(cb => cb.value);
+    const checkedSizes = Array.from(document.querySelectorAll('.modal-sz-check:checked')).map(cb => cb.value);
+
+    const thead = document.getElementById('modal-sc-thead');
+    const tbody = document.getElementById('modal-sc-tbody');
+    const factor = modalChartUnit === 'cm' ? 2.54 : 1.0;
+
+    if (checkedMeasures.length === 0) {
+      thead.innerHTML = '<tr><th>Size</th></tr>';
+      tbody.innerHTML = '<tr><td style="text-align:center; padding:12px; color:var(--text-muted); font-size:12px;">Select measurements above to enter values</td></tr>';
+      return;
+    }
+
+    if (checkedSizes.length === 0) {
+      thead.innerHTML = '<tr><th>Size</th></tr>';
+      tbody.innerHTML = '<tr><td style="text-align:center; padding:12px; color:var(--text-muted); font-size:12px;">Select active sizes above to enter values</td></tr>';
+      return;
+    }
+
+    thead.innerHTML = `
+      <tr>
+        <th style="width:70px;">Size</th>
+        ${checkedMeasures.map(m => `<th>${MEASUREMENT_LABELS[m] || m} (${modalChartUnit})</th>`).join('')}
+      </tr>
+    `;
+
+    tbody.innerHTML = checkedSizes.map(sz => {
+      let rowObj = modalSizeChartRows.find(r => r.size === sz);
+      if (!rowObj) rowObj = { size: sz };
+
+      return `
+        <tr data-size="${sz}">
+          <td><span class="size-tag">${sz}</span></td>
+          ${checkedMeasures.map(m => {
+            const rawVal = rowObj[m];
+            const displayVal = (rawVal !== null && rawVal !== undefined && rawVal !== '')
+              ? (parseFloat(rawVal) * factor).toFixed(1)
+              : '';
+            return `<td><input type="number" step="0.1" class="modal-sc-input" data-key="${m}" value="${displayVal}" style="width:70px; padding:4px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px;"></td>`;
+          }).join('')}
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ── Modal: Add / Edit ────────────────────────────────────────────────────────
+  function openAddModal() {
+    document.getElementById('modal-title').textContent = 'Add New Product';
+    document.getElementById('edit-product-id').value = '';
+    document.getElementById('p-name').value = '';
+    document.getElementById('p-category').value = '';
+    document.getElementById('p-price').value = '';
+    resetSizeStocks();
+    clearImageSelection(null);
+    document.getElementById('img-existing-wrap').style.display = 'none';
+
+    // Reset size chart inputs
+    document.querySelectorAll('.modal-m-check').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.modal-sz-check').forEach(cb => cb.checked = true);
+    document.querySelectorAll('[data-modal-custom-sz]').forEach(el => el.remove());
+    modalCustomSizes = [];
+    modalSizeChartRows = [];
+    modalChartUnit = 'in';
+    setModalChartUnit('in');
+
+    document.getElementById('product-modal').classList.add('open');
+  }
+
+  function openEditModal(id) {
+    const p = allProducts.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('modal-title').textContent = 'Edit Product';
+    document.getElementById('edit-product-id').value = p.id;
+    document.getElementById('p-name').value = p.name;
+    document.getElementById('p-category').value = p.category;
+    document.getElementById('p-price').value = p.price;
+    resetSizeStocks();
+    // Fill in each size's stock
+    (p.sizes || []).forEach(sz => {
+      const inp = document.querySelector(`.size-stock-input[data-size="${sz.size}"]`);
+      if (inp) inp.value = sz.stock;
+    });
+
+    // Reset custom size chips
+    document.querySelectorAll('[data-modal-custom-sz]').forEach(el => el.remove());
+    modalCustomSizes = [];
+    modalSizeChartRows = p.size_charts || [];
+
+    // Set measurement checkboxes
+    const applicableStr = p.applicable_measurements || '';
+    const selectedMeasures = applicableStr.split(',').map(m => m.trim()).filter(Boolean);
+    document.querySelectorAll('.modal-m-check').forEach(cb => {
+      cb.checked = selectedMeasures.includes(cb.value);
+    });
+
+    // Handle custom sizes from size_charts
+    const stdSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
+    const activeSizes = (p.size_charts || []).map(sc => sc.size);
+    activeSizes.forEach(sz => {
+      if (!stdSizes.includes(sz) && !modalCustomSizes.includes(sz)) {
+        modalCustomSizes.push(sz);
+        renderModalCustomSizeChip(sz);
+      }
+    });
+
+    document.querySelectorAll('.modal-sz-check').forEach(cb => {
+      cb.checked = activeSizes.includes(cb.value) || (activeSizes.length === 0 && stdSizes.includes(cb.value));
+    });
+
+    modalChartUnit = 'in';
+    setModalChartUnit('in');
+
+    clearImageSelection(null);
+    if (p.image_url) {
+      const wrap = document.getElementById('img-existing-wrap');
+      document.getElementById('img-existing').src = p.image_url;
+      wrap.style.display = 'flex';
+    } else {
+      document.getElementById('img-existing-wrap').style.display = 'none';
+    }
+    document.getElementById('product-modal').classList.add('open');
+  }
+
+  function closeModal() { document.getElementById('product-modal').classList.remove('open'); }
+
+  // ── Image upload helpers ─────────────────────────────────────────────────────
+  function handleImageSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+    previewImageFile(file);
+  }
+
+  function handleImageDrop(event) {
+    event.preventDefault();
+    document.getElementById('img-upload-area').style.borderColor = 'var(--border)';
+    const file = event.dataTransfer.files[0];
+    if (!file) return;
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) { showToast('Only JPG, PNG, WEBP allowed', 'error'); return; }
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('p-image-file').files = dt.files;
+    previewImageFile(file);
+  }
+
+  function previewImageFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('img-preview').src = e.target.result;
+      document.getElementById('img-filename').textContent = file.name;
+      document.getElementById('img-placeholder').style.display = 'none';
+      document.getElementById('img-preview-wrap').style.display = 'flex';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearImageSelection(event) {
+    if (event) { event.stopPropagation(); }
+    document.getElementById('p-image-file').value = '';
+    document.getElementById('img-preview').src = '';
+    document.getElementById('img-filename').textContent = '';
+    document.getElementById('img-placeholder').style.display = 'block';
+    document.getElementById('img-preview-wrap').style.display = 'none';
+  }
+
+  // ── Save product ─────────────────────────────────────────────────────────────
+  async function saveProduct() {
+    const name = document.getElementById('p-name').value.trim();
+    const category = document.getElementById('p-category').value.trim();
+    const price = parseFloat(document.getElementById('p-price').value);
+
+    if (!name || !category || isNaN(price) || price < 0) {
+      showToast('Please fill in Name, Category and Price', 'error'); return;
+    }
+
+    const sizesData = getSizesData();
+    const editId = document.getElementById('edit-product-id').value;
+    const btn = document.getElementById('save-product-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    updateModalRowsFromInputs();
+    const checkedMeasures = Array.from(document.querySelectorAll('.modal-m-check:checked')).map(cb => cb.value);
+    const checkedSizes = Array.from(document.querySelectorAll('.modal-sz-check:checked')).map(cb => cb.value);
+
+    const scPayload = checkedSizes.map(sz => {
+      const existing = modalSizeChartRows.find(r => r.size === sz) || { size: sz };
+      const row = { size: sz };
+      checkedMeasures.forEach(m => {
+        row[m] = existing[m] !== undefined ? existing[m] : null;
+      });
+      return row;
+    });
+
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('category', category);
+    formData.append('price', price);
+    formData.append('sizes_data', JSON.stringify(sizesData));
+    formData.append('applicable_measurements', checkedMeasures.join(','));
+    formData.append('size_chart_data', JSON.stringify(scPayload));
+    formData.append('unit', 'in');
+
+    const imageFile = document.getElementById('p-image-file').files[0];
+    if (imageFile) {
+      formData.append('image', imageFile);
+    }
+
+    try {
+      let res;
+      if (editId) {
+        res = await fetch(`/api/products/${editId}`, { method: 'PUT', body: formData });
+      } else {
+        res = await fetch('/api/products', { method: 'POST', body: formData });
+      }
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Save failed', 'error'); return; }
+
+      if (editId) {
+        const idx = allProducts.findIndex(p => p.id === parseInt(editId));
+        if (idx !== -1) allProducts[idx] = data;
+      } else {
+        allProducts.unshift(data);
+      }
+      applyFilters();
+      closeModal();
+      showToast(editId ? 'Product updated!' : 'Product added!', 'success');
+    } catch(e) {
+      showToast('Network error', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save Product';
+    }
+  }
+
+  // ── Delete ───────────────────────────────────────────────────────────────────
+  function openDeleteModal(id, name) {
+    deleteTargetId = id;
+    document.getElementById('delete-product-name').textContent = name;
+    document.getElementById('delete-modal').classList.add('open');
+  }
+
+  function closeDeleteModal() { document.getElementById('delete-modal').classList.remove('open'); }
+
+  async function confirmDelete() {
+    if (!deleteTargetId) return;
+    const btn = document.getElementById('confirm-delete-btn');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      const res = await fetch(`/api/products/${deleteTargetId}`, { method: 'DELETE' });
+      if (res.ok) {
+        allProducts = allProducts.filter(p => p.id !== deleteTargetId);
+        applyFilters();
+        closeDeleteModal();
+        showToast('Product deleted', 'success');
+      } else {
+        showToast('Delete failed', 'error');
+      }
+    } catch(e) { showToast('Network error', 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Delete'; deleteTargetId = null; }
+  }
+
+  loadProducts();
+</script>
+{% endblock %}

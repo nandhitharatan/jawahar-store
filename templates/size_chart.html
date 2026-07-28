@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% block title %}Size Chart – Jawahar Enterprises{% endblock %}
+{% block page_title %}Size Chart Management{% endblock %}
+
+{% block extra_css %}
+<style>
+  .size-chart-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    background: var(--surface);
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .unit-toggle-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .unit-toggle-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .unit-toggle-btn.active {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+    box-shadow: 0 2px 6px rgba(216,90,48,0.25);
+  }
+
+  .sc-table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .sc-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+  }
+
+  .sc-table th {
+    background: var(--surface-2);
+    padding: 14px 18px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sc-table td {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  .sc-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .sc-table tbody tr:hover td {
+    background: rgba(0,0,0,0.015);
+  }
+
+  .sc-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 32px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .sc-input {
+    width: 100px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    font-weight: 500;
+    outline: none;
+    transition: all 0.15s ease;
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .sc-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+
+  .sc-note {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--accent);
+    font-size: 12.5px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Top Toolbar -->
+<div class="size-chart-toolbar">
+  <div>
+    <div style="font-size: 15px; font-weight: 700; color: var(--text);">Garment Measurement Standard</div>
+    <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 2px;">Edit standard measurements for women's apparel sizing</div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 16px;">
+    <!-- Unit Switcher -->
+    <div class="unit-toggle-group">
+      <span style="font-size: 12.5px; font-weight: 600; color: var(--text-muted);">Unit:</span>
+      <button type="button" class="unit-toggle-btn active" id="btn-unit-in" onclick="setUnit('in')">Inches (in)</button>
+      <button type="button" class="unit-toggle-btn" id="btn-unit-cm" onclick="setUnit('cm')">Centimeters (cm)</button>
+    </div>
+
+    <!-- Save Button -->
+    <button type="button" class="btn btn-primary" id="btn-save-chart" onclick="saveSizeChart()">
+      💾 Save Changes
+    </button>
+  </div>
+</div>
+
+<!-- Table Card -->
+<div class="sc-table-wrap">
+  <table class="sc-table">
+    <thead>
+      <tr>
+        <th style="width: 110px;">Size</th>
+        <th>Bust (<span class="unit-label">in</span>)</th>
+        <th>Front Length (<span class="unit-label">in</span>)</th>
+        <th>Waist (<span class="unit-label">in</span>)</th>
+        <th>Hips (<span class="unit-label">in</span>)</th>
+        <th>Across Shoulder (<span class="unit-label">in</span>)</th>
+      </tr>
+    </thead>
+    <tbody id="size-chart-tbody">
+      <tr>
+        <td colspan="6" style="text-align:center; padding:40px; color:var(--text-muted);">Loading Size Chart data…</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Footer Note -->
+<div class="sc-note" id="sc-note-text">
+  * Garment Measurements in Inches
+</div>
+
+<script>
+  let currentUnit = 'in'; // 'in' or 'cm'
+  let rawChartsData = []; // Always kept in inches as base truth
+
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchSizeChart();
+  });
+
+  async function fetchSizeChart() {
+    try {
+      const res = await fetch('/api/size-chart');
+      if (!res.ok) throw new Error('Failed to load size chart data');
+      rawChartsData = await res.json();
+      renderTable();
+    } catch (err) {
+      console.error(err);
+      if (typeof showToast === 'function') {
+        showToast('Error loading size chart: ' + err.message, 'error');
+      }
+    }
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('size-chart-tbody');
+    if (!rawChartsData || rawChartsData.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No size chart entries found.</td></tr>';
+      return;
+    }
+
+    const factor = currentUnit === 'cm' ? 2.54 : 1.0;
+
+    tbody.innerHTML = rawChartsData.map((row, idx) => {
+      const bustVal = (row.bust * factor).toFixed(1);
+      const flVal   = (row.front_length * factor).toFixed(1);
+      const waistVal= (row.waist * factor).toFixed(1);
+      const hipsVal = (row.hips * factor).toFixed(1);
+      const shVal   = (row.across_shoulder * factor).toFixed(1);
+
+      return `
+        <tr data-size="${row.size}">
+          <td><span class="sc-badge">${row.size}</span></td>
+          <td><input type="number" step="0.1" class="sc-input field-bust" value="${bustVal}"></td>
+          <td><input type="number" step="0.1" class="sc-input field-fl" value="${flVal}"></td>
+          <td><input type="number" step="0.1" class="sc-input field-waist" value="${waistVal}"></td>
+          <td><input type="number" step="0.1" class="sc-input field-hips" value="${hipsVal}"></td>
+          <td><input type="number" step="0.1" class="sc-input field-shoulder" value="${shVal}"></td>
+        </tr>
+      `;
+    }).join('');
+
+    // Update headers and note text
+    document.querySelectorAll('.unit-label').forEach(el => el.textContent = currentUnit);
+    const noteEl = document.getElementById('sc-note-text');
+    if (noteEl) {
+      noteEl.textContent = currentUnit === 'cm' 
+        ? '* Garment Measurements in Centimeters' 
+        : '* Garment Measurements in Inches';
+    }
+  }
+
+  function setUnit(newUnit) {
+    if (currentUnit === newUnit) return;
+    
+    // First, update rawChartsData from current inputs before switching unit
+    updateRawDataFromDOM();
+
+    currentUnit = newUnit;
+    
+    document.getElementById('btn-unit-in').classList.toggle('active', currentUnit === 'in');
+    document.getElementById('btn-unit-cm').classList.toggle('active', currentUnit === 'cm');
+    
+    renderTable();
+  }
+
+  function updateRawDataFromDOM() {
+    const trs = document.querySelectorAll('#size-chart-tbody tr');
+    const factor = currentUnit === 'cm' ? 2.54 : 1.0;
+
+    trs.forEach(tr => {
+      const sizeName = tr.getAttribute('data-size');
+      const item = rawChartsData.find(d => d.size === sizeName);
+      if (!item) return;
+
+      const bustInput = tr.querySelector('.field-bust');
+      const flInput   = tr.querySelector('.field-fl');
+      const waistInput= tr.querySelector('.field-waist');
+      const hipsInput = tr.querySelector('.field-hips');
+      const shInput   = tr.querySelector('.field-shoulder');
+
+      if (bustInput) item.bust = parseFloat(bustInput.value || 0) / factor;
+      if (flInput)   item.front_length = parseFloat(flInput.value || 0) / factor;
+      if (waistInput)item.waist = parseFloat(waistInput.value || 0) / factor;
+      if (hipsInput) item.hips = parseFloat(hipsInput.value || 0) / factor;
+      if (shInput)   item.across_shoulder = parseFloat(shInput.value || 0) / factor;
+    });
+  }
+
+  async function saveSizeChart() {
+    updateRawDataFromDOM();
+
+    const saveBtn = document.getElementById('btn-save-chart');
+    saveBtn.disabled = true;
+    saveBtn.textContent = '⏳ Saving…';
+
+    try {
+      // Build rows payload
+      const rows = rawChartsData.map(d => ({
+        size: d.size,
+        bust: d.bust,
+        front_length: d.front_length,
+        waist: d.waist,
+        hips: d.hips,
+        across_shoulder: d.across_shoulder
+      }));
+
+      const res = await fetch('/api/size-chart/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unit: 'in', rows: rows })
+      });
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to save size chart');
+
+      if (result.charts) {
+        rawChartsData = result.charts;
+      }
+      renderTable();
+
+      if (typeof showToast === 'function') {
+        showToast('Size chart updated successfully!', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      if (typeof showToast === 'function') {
+        showToast('Error: ' + err.message, 'error');
+      }
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = '💾 Save Changes';
+    }
+  }
+</script>
+{% endblock %}

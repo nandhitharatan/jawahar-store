@@ -1,0 +1,37 @@
+# Virtual Environment
+venv/
+env/
+
+# Database (don't push client data)
+store.db
+*.db
+*.sqlite
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Product images (uploaded by client)
+static/images/products/
+
+# Environment variables
+.env
+.env.local
+
+# VS Code
+.vscode/
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Node modules (for Electron)
+node_modules/
+
+# Electron build output
+dist/
+
+# Logs
+*.log

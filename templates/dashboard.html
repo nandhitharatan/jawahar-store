@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – Jawahar Enterprises{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<style>
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+    box-shadow: var(--shadow); position: relative; overflow: hidden;
+  }
+  .stat-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent);
+  }
+  .stat-card.green::before { background: var(--success); }
+  .stat-card.blue::before { background: var(--info); }
+  .stat-card.red::before { background: var(--danger); }
+  .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 10px; }
+  .stat-value { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+  .stat-icon { position: absolute; right: 18px; top: 18px; font-size: 22px; opacity: 0.2; }
+  .stat-sub { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+  .bottom-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+
+  .payment-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .payment-pill {
+    flex: 1; min-width: 80px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 12px 14px; text-align: center;
+  }
+  .payment-pill .p-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+  .payment-pill .p-value { font-size: 15px; font-weight: 700; }
+
+  .low-stock-list { display: flex; flex-direction: column; gap: 8px; }
+  .low-stock-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: rgba(216,48,48,0.04);
+    border: 1px solid rgba(216,48,48,0.15); border-radius: var(--radius-sm);
+  }
+  .low-stock-item .ls-name { font-size: 13px; font-weight: 500; }
+  .low-stock-item .ls-stock { font-size: 12px; font-weight: 700; color: var(--danger); }
+</style>
+
+<!-- Stats row -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-icon">₹</div>
+    <div class="stat-label">Today's Sales</div>
+    <div class="stat-value" id="stat-sales">₹{{ "%.2f"|format(stats.today_sales) }}</div>
+    <div class="stat-sub">{{ stats.today_orders }} order{{ 's' if stats.today_orders != 1 }}</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon">🛍</div>
+    <div class="stat-label">Today's Orders</div>
+    <div class="stat-value">{{ stats.today_orders }}</div>
+    <div class="stat-sub">Completed transactions</div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-icon">⚠</div>
+    <div class="stat-label">Low Stock Items</div>
+    <div class="stat-value" id="stat-low-stock" style="color:var(--danger)">{{ stats.low_stock_count }}</div>
+    <div class="stat-sub">Need restocking</div>
+  </div>
+  <div class="stat-card blue">
+    <div class="stat-icon">👗</div>
+    <div class="stat-label">Total Products</div>
+    <div class="stat-value">{{ stats.total_products }}</div>
+    <div class="stat-sub">Active listings</div>
+  </div>
+</div>
+
+<!-- Bottom grid -->
+<div class="bottom-grid">
+  <!-- Recent Transactions -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Recent Transactions</div>
+      <a href="{{ url_for('main.sales_report') }}" class="btn btn-secondary btn-sm">View All →</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Invoice</th>
+            <th>Customer</th>
+            <th>Payment</th>
+            <th>Amount</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="recent-transactions-tbody">
+          {% for txn in stats.recent_transactions %}
+          <tr>
+            <td><span style="font-family:var(--font-mono);font-size:12px;">{{ txn.invoice_number }}</span></td>
+            <td>{{ txn.customer_name }}</td>
+            <td>
+              {% if txn.payment_method == 'Cash' %}
+                <span class="badge badge-success">💵 Cash</span>
+              {% elif txn.payment_method == 'UPI' %}
+                <span class="badge badge-info">📱 UPI</span>
+              {% else %}
+                <span class="badge badge-neutral">💳 Card</span>
+              {% endif %}
+            </td>
+            <td class="fw-600">₹{{ "%.2f"|format(txn.total) }}</td>
+            <td class="text-muted" style="font-size:12px;">{{ txn.date[:16].replace('T',' ') if txn.date else '—' }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" style="text-align:center; color:var(--text-muted); padding:32px;">
+              No transactions yet today.<br>
+              <a href="{{ url_for('main.billing') }}" class="btn btn-primary btn-sm" style="margin-top:12px;">Start Billing</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Right column -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    <!-- Payment Breakdown -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Today's Payments</div>
+      </div>
+      <div class="card-body">
+        <div class="payment-pills" id="payment-breakdown">
+          <div class="payment-pill">
+            <div class="p-label">💵 Cash</div>
+            <div class="p-value" id="pay-cash">₹0</div>
+          </div>
+          <div class="payment-pill">
+            <div class="p-label">📱 UPI</div>
+            <div class="p-value" id="pay-upi">₹0</div>
+          </div>
+          <div class="payment-pill">
+            <div class="p-label">💳 Card</div>
+            <div class="p-value" id="pay-card">₹0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Low Stock Alerts -->
+    <div class="card" style="flex:1;">
+      <div class="card-header">
+        <div class="card-title" style="color:var(--danger)">⚠ Low Stock Alerts</div>
+        <a href="{{ url_for('main.inventory') }}" class="btn btn-secondary btn-sm">Manage →</a>
+      </div>
+      <div class="card-body">
+        <div class="low-stock-list" id="low-stock-list">
+          <div style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px 0;">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Load low stock items
+  async function loadLowStockItems() {
+    try {
+      const res = await fetch('/api/products?category=');
+      const products = await res.json();
+      const settingsRes = await fetch('/api/settings');
+      const settings = await settingsRes.json();
+      const threshold = settings.low_stock_threshold || 5;
+
+      const low = products.filter(p => p.stock <= threshold).sort((a,b) => a.stock - b.stock);
+      const container = document.getElementById('low-stock-list');
+
+      if (low.length === 0) {
+        container.innerHTML = '<div style="text-align:center;color:var(--success);font-size:13px;padding:16px 0;">✓ All products are well-stocked</div>';
+        return;
+      }
+      container.innerHTML = low.slice(0, 6).map(p => `
+        <div class="low-stock-item">
+          <div>
+            <div class="ls-name">${p.name}</div>
+            <div style="font-size:11px;color:var(--text-muted);">${p.category}</div>
+          </div>
+          <div class="ls-stock">${p.stock} left</div>
+        </div>
+      `).join('');
+    } catch(e) { console.error(e); }
+  }
+
+  // Load payment breakdown from recent transactions
+  async function loadPaymentBreakdown() {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const res = await fetch(`/api/reports/sales?start_date=${today}&end_date=${today}`);
+      const report = await res.json();
+      const pb = report.payment_breakdown || {};
+      document.getElementById('pay-cash').textContent = '₹' + (pb['Cash'] || 0).toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+      document.getElementById('pay-upi').textContent = '₹' + (pb['UPI'] || 0).toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+      document.getElementById('pay-card').textContent = '₹' + (pb['Card'] || 0).toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+    } catch(e) {}
+  }
+
+  loadLowStockItems();
+  loadPaymentBreakdown();
+</script>
+{% endblock %}

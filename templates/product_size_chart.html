@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} – Size Chart{% endblock %}
+{% block page_title %}Product Size Chart: {{ product.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .psc-container { display: flex; flex-direction: column; gap: 20px; }
+  .psc-header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 16px;
+  }
+  .psc-title-group h2 { font-size: 18px; font-weight: 700; color: var(--text); }
+  .psc-title-group .meta { font-size: 13px; color: var(--text-muted); margin-top: 4px; display: flex; gap: 12px; }
+
+  .psc-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+  }
+
+  .section-subtitle {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 12px;
+  }
+
+  .measurements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .m-checkbox-card {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--surface-2);
+    font-size: 13px; cursor: pointer; user-select: none;
+    transition: all 0.12s ease;
+  }
+  .m-checkbox-card:hover { border-color: var(--accent); }
+  .m-checkbox-card input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+
+  .size-select-group {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 24px;
+  }
+  .size-chip-cb {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface-2); font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  .size-chip-cb input { accent-color: var(--accent); }
+
+  .custom-size-input-wrap { display: flex; gap: 6px; align-items: center; }
+  .custom-size-input {
+    width: 110px; padding: 6px 10px; border: 1px solid var(--border);
+    border-radius: 6px; font-size: 12.5px; outline: none;
+  }
+
+  .table-responsive { overflow-x: auto; margin-top: 16px; }
+  .psc-table { width: 100%; border-collapse: collapse; text-align: left; }
+  .psc-table th {
+    background: var(--surface-2); padding: 12px 14px;
+    font-size: 11.5px; font-weight: 700; text-transform: uppercase;
+    color: var(--text-muted); border-bottom: 1px solid var(--border);
+  }
+  .psc-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .psc-input {
+    width: 90px; padding: 6px 10px; border: 1px solid var(--border);
+    border-radius: 6px; font-family: var(--font-mono); font-size: 13px; outline: none;
+  }
+  .psc-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+
+  .psc-note {
+    margin-top: 16px; padding: 12px 16px; background: var(--surface-2);
+    border-radius: 6px; border-left: 3px solid var(--accent); font-size: 12px; color: var(--text-muted);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="psc-container">
+  <!-- Header -->
+  <div class="psc-header">
+    <div class="psc-title-group">
+      <h2>👗 {{ product.name }}</h2>
+      <div class="meta">
+        <span>Category: <strong>{{ product.category }}</strong></span>
+        <span>·</span>
+        <span>Price: <strong>₹{{ "%.2f"|format(product.price) }}</strong></span>
+      </div>
+    </div>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <a href="{{ url_for('main.products') }}" class="btn btn-secondary">← Back to Products</a>
+      <button type="button" class="btn btn-primary" onclick="saveProductSizeChart()">💾 Save Changes</button>
+    </div>
+  </div>
+
+  <!-- Main Card -->
+  <div class="psc-card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 style="font-size:15px; font-weight:700;">Size Chart Configuration</h3>
+      <div style="display:flex; gap:6px;">
+        <button type="button" class="btn btn-secondary btn-sm" id="unit-btn-in" onclick="setUnit('in')" style="background:var(--accent); color:#fff;">Inches (in)</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="unit-btn-cm" onclick="setUnit('cm')">cm</button>
+      </div>
+    </div>
+
+    <!-- Applicable Measurements -->
+    <div class="section-subtitle">1. Select Applicable Measurement Columns</div>
+    
+    <div style="margin-bottom:12px; font-size:11.5px; color:var(--text-muted);">Upper Body:</div>
+    <div class="measurements-grid">
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="bust" onchange="renderDynamicTable()"> Bust / Chest</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="across_shoulder" onchange="renderDynamicTable()"> Across Shoulder</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="sleeve_length" onchange="renderDynamicTable()"> Sleeve Length</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="armhole" onchange="renderDynamicTable()"> Armhole</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="neck_width" onchange="renderDynamicTable()"> Neck Width</label>
+    </div>
+
+    <div style="margin-bottom:12px; font-size:11.5px; color:var(--text-muted);">Lower Body:</div>
+    <div class="measurements-grid">
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="waist" onchange="renderDynamicTable()"> Waist</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="hips" onchange="renderDynamicTable()"> Hips</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="inseam_length" onchange="renderDynamicTable()"> Inseam Length</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="outseam_length" onchange="renderDynamicTable()"> Outseam Length</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="thigh_width" onchange="renderDynamicTable()"> Thigh Width</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="knee_width" onchange="renderDynamicTable()"> Knee Width</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="bottom_width" onchange="renderDynamicTable()"> Bottom Width</label>
+    </div>
+
+    <div style="margin-bottom:12px; font-size:11.5px; color:var(--text-muted);">Length & Other:</div>
+    <div class="measurements-grid">
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="front_length" onchange="renderDynamicTable()"> Front Length</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="back_length" onchange="renderDynamicTable()"> Back Length</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="dress_length" onchange="renderDynamicTable()"> Dress/Gown Length</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="kurta_length" onchange="renderDynamicTable()"> Kurta Length</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="dupatta_length" onchange="renderDynamicTable()"> Dupatta Length</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="dupatta_width" onchange="renderDynamicTable()"> Dupatta Width</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="rise" onchange="renderDynamicTable()"> Rise</label>
+      <label class="m-checkbox-card"><input type="checkbox" class="m-check" value="ankle_width" onchange="renderDynamicTable()"> Ankle Width</label>
+    </div>
+
+    <!-- Active Sizes Selection -->
+    <div class="section-subtitle">2. Select Active Sizes</div>
+    <div class="size-select-group" id="size-chips-container">
+      <label class="size-chip-cb"><input type="checkbox" class="sz-check" value="XS" checked onchange="renderDynamicTable()"> XS</label>
+      <label class="size-chip-cb"><input type="checkbox" class="sz-check" value="S" checked onchange="renderDynamicTable()"> S</label>
+      <label class="size-chip-cb"><input type="checkbox" class="sz-check" value="M" checked onchange="renderDynamicTable()"> M</label>
+      <label class="size-chip-cb"><input type="checkbox" class="sz-check" value="L" checked onchange="renderDynamicTable()"> L</label>
+      <label class="size-chip-cb"><input type="checkbox" class="sz-check" value="XL" checked onchange="renderDynamicTable()"> XL</label>
+      <label class="size-chip-cb"><input type="checkbox" class="sz-check" value="XXL" checked onchange="renderDynamicTable()"> XXL</label>
+      <label class="size-chip-cb"><input type="checkbox" class="sz-check" value="Free Size" onchange="renderDynamicTable()"> Free Size</label>
+
+      <!-- Custom Size Adder -->
+      <div class="custom-size-input-wrap">
+        <input type="text" class="custom-size-input" id="new-custom-size-input" placeholder="e.g. 28, 30">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="addCustomSize()">+ Add Custom Size</button>
+      </div>
+    </div>
+
+    <!-- Dynamic Measurements Table -->
+    <div class="section-subtitle">3. Measurements Grid</div>
+    <div class="table-responsive">
+      <table class="psc-table">
+        <thead id="psc-thead">
+          <tr><th>Size</th></tr>
+        </thead>
+        <tbody id="psc-tbody">
+          <tr><td style="padding:20px; text-align:center; color:var(--text-muted);">Select measurements and sizes to edit chart.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="psc-note" id="psc-note-text">
+      * Garment Measurements in Inches
+    </div>
+  </div>
+</div>
+
+<script>
+  const productId = {{ product.id }};
+  let currentUnit = 'in';
+  let sizeChartsRows = [];
+  let customSizesList = [];
+
+  const ALL_MEASUREMENTS_MAP = {
+    'bust': 'Bust/Chest', 'across_shoulder': 'Across Shoulder', 'sleeve_length': 'Sleeve Length',
+    'armhole': 'Armhole', 'neck_width': 'Neck Width', 'waist': 'Waist', 'hips': 'Hips',
+    'inseam_length': 'Inseam Length', 'outseam_length': 'Outseam Length', 'thigh_width': 'Thigh Width',
+    'knee_width': 'Knee Width', 'bottom_width': 'Bottom Width', 'front_length': 'Front Length',
+    'back_length': 'Back Length', 'dress_length': 'Dress Length', 'kurta_length': 'Kurta Length',
+    'dupatta_length': 'Dupatta Length', 'dupatta_width': 'Dupatta Width', 'rise': 'Rise', 'ankle_width': 'Ankle Width'
+  };
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await fetchProductSizeChartData();
+  });
+
+  async function fetchProductSizeChartData() {
+    try {
+      const res = await fetch(`/api/product/${productId}/size-chart`);
+      if (!res.ok) throw new Error('Failed to fetch product size chart');
+      const data = await res.json();
+      
+      const applicableStr = data.applicable_measurements || '';
+      const selectedMeasures = applicableStr.split(',').map(m => m.trim()).filter(Boolean);
+
+      // Check measurement checkboxes
+      document.querySelectorAll('.m-check').forEach(cb => {
+        cb.checked = selectedMeasures.includes(cb.value);
+      });
+
+      sizeChartsRows = data.size_charts || [];
+
+      // Detect any custom sizes present in sizeChartsRows that are not standard
+      const standardSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
+      const activeSizesInDB = sizeChartsRows.map(r => r.size);
+      
+      activeSizesInDB.forEach(sz => {
+        if (!standardSizes.includes(sz) && !customSizesList.includes(sz)) {
+          customSizesList.push(sz);
+          renderCustomSizeChip(sz);
+        }
+      });
+
+      // Check standard size checkboxes based on DB records
+      if (activeSizesInDB.length > 0) {
+        document.querySelectorAll('.sz-check').forEach(cb => {
+          cb.checked = activeSizesInDB.includes(cb.value);
+        });
+      }
+
+      renderDynamicTable();
+    } catch (err) {
+      console.error(err);
+      if (typeof showToast === 'function') showToast('Error loading size chart: ' + err.message, 'error');
+    }
+  }
+
+  function addCustomSize() {
+    const input = document.getElementById('new-custom-size-input');
+    const val = (input.value || '').trim();
+    if (!val) return;
+    if (!customSizesList.includes(val)) {
+      customSizesList.push(val);
+      renderCustomSizeChip(val);
+      renderDynamicTable();
+    }
+    input.value = '';
+  }
+
+  function renderCustomSizeChip(sizeVal) {
+    const container = document.getElementById('size-chips-container');
+    const wrapWrap = container.querySelector('.custom-size-input-wrap');
+
+    const label = document.createElement('label');
+    label.className = 'size-chip-cb';
+    label.setAttribute('data-custom-sz', sizeVal);
+    label.innerHTML = `
+      <input type="checkbox" class="sz-check" value="${sizeVal}" checked onchange="renderDynamicTable()">
+      <span>${sizeVal}</span>
+      <span style="color:var(--danger); cursor:pointer; margin-left:4px; font-weight:700;" onclick="removeCustomSize('${sizeVal}', event)">×</span>
+    `;
+    container.insertBefore(label, wrapWrap);
+  }
+
+  function removeCustomSize(sizeVal, event) {
+    if (event) event.stopPropagation();
+    customSizesList = customSizesList.filter(s => s !== sizeVal);
+    const chip = document.querySelector(`label[data-custom-sz="${sizeVal}"]`);
+    if (chip) chip.remove();
+    renderDynamicTable();
+  }
+
+  function setUnit(unit) {
+    if (currentUnit === unit) return;
+    updateRowValuesFromInputs();
+    currentUnit = unit;
+
+    document.getElementById('unit-btn-in').style.background = currentUnit === 'in' ? 'var(--accent)' : '';
+    document.getElementById('unit-btn-in').style.color = currentUnit === 'in' ? '#fff' : '';
+    document.getElementById('unit-btn-cm').style.background = currentUnit === 'cm' ? 'var(--accent)' : '';
+    document.getElementById('unit-btn-cm').style.color = currentUnit === 'cm' ? '#fff' : '';
+
+    renderDynamicTable();
+  }
+
+  function updateRowValuesFromInputs() {
+    const trs = document.querySelectorAll('#psc-tbody tr');
+    const factor = currentUnit === 'cm' ? 2.54 : 1.0;
+
+    trs.forEach(tr => {
+      const sz = tr.getAttribute('data-size');
+      if (!sz) return;
+      let rowObj = sizeChartsRows.find(r => r.size === sz);
+      if (!rowObj) {
+        rowObj = { size: sz };
+        sizeChartsRows.push(rowObj);
+      }
+
+      tr.querySelectorAll('input.psc-input').forEach(inp => {
+        const key = inp.getAttribute('data-key');
+        const rawVal = inp.value.trim();
+        if (rawVal !== '') {
+          rowObj[key] = parseFloat(rawVal) / factor;
+        } else {
+          rowObj[key] = null;
+        }
+      });
+    });
+  }
+
+  function renderDynamicTable() {
+    const checkedMeasures = Array.from(document.querySelectorAll('.m-check:checked')).map(cb => cb.value);
+    const checkedSizes = Array.from(document.querySelectorAll('.sz-check:checked')).map(cb => cb.value);
+
+    const thead = document.getElementById('psc-thead');
+    const tbody = document.getElementById('psc-tbody');
+    const factor = currentUnit === 'cm' ? 2.54 : 1.0;
+
+    document.getElementById('psc-note-text').textContent = currentUnit === 'cm'
+      ? '* Garment Measurements in Centimeters'
+      : '* Garment Measurements in Inches';
+
+    if (checkedMeasures.length === 0) {
+      thead.innerHTML = '<tr><th>Size</th></tr>';
+      tbody.innerHTML = '<tr><td style="padding:20px; text-align:center; color:var(--text-muted);">Please check at least one measurement column above.</td></tr>';
+      return;
+    }
+
+    if (checkedSizes.length === 0) {
+      thead.innerHTML = '<tr><th>Size</th></tr>';
+      tbody.innerHTML = '<tr><td style="padding:20px; text-align:center; color:var(--text-muted);">Please check at least one size row above.</td></tr>';
+      return;
+    }
+
+    // Build Header
+    thead.innerHTML = `
+      <tr>
+        <th style="width:100px;">Size</th>
+        ${checkedMeasures.map(m => `<th>${ALL_MEASUREMENTS_MAP[m] || m} (${currentUnit})</th>`).join('')}
+      </tr>
+    `;
+
+    // Build Body
+    tbody.innerHTML = checkedSizes.map(sz => {
+      let rowObj = sizeChartsRows.find(r => r.size === sz);
+      if (!rowObj) rowObj = { size: sz };
+
+      return `
+        <tr data-size="${sz}">
+          <td><span class="size-tag">${sz}</span></td>
+          ${checkedMeasures.map(m => {
+            const rawVal = rowObj[m];
+            const displayVal = (rawVal !== null && rawVal !== undefined && rawVal !== '')
+              ? (parseFloat(rawVal) * factor).toFixed(1)
+              : '';
+            return `<td><input type="number" step="0.1" class="psc-input" data-key="${m}" value="${displayVal}"></td>`;
+          }).join('')}
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function saveProductSizeChart() {
+    updateRowValuesFromInputs();
+
+    const checkedMeasures = Array.from(document.querySelectorAll('.m-check:checked')).map(cb => cb.value);
+    const checkedSizes = Array.from(document.querySelectorAll('.sz-check:checked')).map(cb => cb.value);
+
+    const rowsPayload = checkedSizes.map(sz => {
+      const existing = sizeChartsRows.find(r => r.size === sz) || { size: sz };
+      const row = { size: sz };
+      checkedMeasures.forEach(m => {
+        row[m] = existing[m] !== undefined ? existing[m] : null;
+      });
+      return row;
+    });
+
+    try {
+      const res = await fetch(`/api/product/${productId}/size-chart/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicable_measurements: checkedMeasures.join(','),
+          unit: 'in', // always standard store in inches
+          rows: rowsPayload
+        })
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to save size chart');
+
+      if (json.size_charts) sizeChartsRows = json.size_charts;
+      renderDynamicTable();
+
+      if (typeof showToast === 'function') showToast('Size chart saved successfully!', 'success');
+    } catch (err) {
+      console.error(err);
+      if (typeof showToast === 'function') showToast('Error: ' + err.message, 'error');
+    }
+  }
+</script>
+{% endblock %}

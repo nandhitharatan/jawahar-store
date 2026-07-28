@@ -1,0 +1,52 @@
+/* style.css – Jawahar Enterprises Global Styles */
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d0d0c8; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #b0b0a8; }
+
+/* Focus ring accessible */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Smooth transitions */
+a { transition: color 0.15s ease; }
+
+/* Prevent text selection on buttons */
+button { user-select: none; }
+
+/* Number input arrows */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { opacity: 1; }
+
+/* Print styles */
+@media print {
+  .sidebar, .top-bar { display: none !important; }
+  .page-body { padding: 0 !important; }
+  .main-content { overflow: visible !important; }
+  .app-layout { display: block !important; }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 900px) {
+  :root { --sidebar-width: 200px; }
+  .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .report-stats { grid-template-columns: repeat(2, 1fr) !important; }
+  .billing-layout { grid-template-columns: 1fr !important; height: auto !important; }
+  .bottom-grid { grid-template-columns: 1fr !important; }
+  .report-grid { grid-template-columns: 1fr !important; }
+  .settings-layout { grid-template-columns: 1fr !important; }
+  .inv-stats { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+@media (max-width: 680px) {
+  .sidebar { width: 56px; }
+  .sidebar .store-name, .sidebar .store-tagline, .sidebar .nav-link span:not(.nav-icon),
+  .sidebar .nav-section-label, .sidebar .sidebar-footer { display: none; }
+  .sidebar .nav-link { padding: 12px; justify-content: center; }
+  .sidebar-logo { padding: 12px; text-align: center; }
+  .page-body { padding: 16px; }
+  .top-bar { padding: 0 16px; }
+  .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+  .grid-2 { grid-template-columns: 1fr !important; }
+}

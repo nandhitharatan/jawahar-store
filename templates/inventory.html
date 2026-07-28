@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block title %}Inventory – Jawahar Enterprises{% endblock %}
+{% block page_title %}Inventory{% endblock %}
+
+{% block extra_css %}
+<style>
+  .inv-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+  .inv-stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+  .inv-stat .is-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 6px; }
+  .inv-stat .is-value { font-size: 22px; font-weight: 700; }
+
+  .inv-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+  .inv-toolbar .sw { flex: 1; min-width: 180px; position: relative; }
+  .inv-toolbar .sw input { width: 100%; padding: 9px 12px 9px 34px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font); font-size: 13.5px; outline: none; }
+  .inv-toolbar .sw input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+  .inv-toolbar .sw span { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+
+  .inv-table-wrap { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); }
+
+  .badge-category { padding: 3px 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+  /* Per-size rows */
+  .size-rows td { font-size: 12.5px; padding: 5px 12px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .size-rows:last-child td { border-bottom: none; }
+  .size-label-col { font-weight: 600; color: var(--text); padding-left: 24px !important; display: flex; align-items: center; gap: 6px; }
+  .size-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .dot-good { background: var(--success); }
+  .dot-low  { background: var(--warning); }
+  .dot-out  { background: var(--danger); }
+
+  .stock-edit-wrap { display: flex; align-items: center; gap: 6px; }
+  .stock-inline-input {
+    width: 68px; padding: 4px 8px; border: 1.5px solid var(--accent);
+    border-radius: 5px; font-size: 13px; font-family: var(--font); text-align: center; outline: none;
+  }
+  .btn-update-stock { background: var(--accent); color: #fff; border: none; border-radius: 5px; padding: 4px 10px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+  .btn-update-stock:hover { background: var(--accent-light); }
+
+  .product-name-row td { font-weight: 600; font-size: 13.5px; padding: 12px 12px 6px 12px; border-bottom: none; background: var(--surface-2); }
+  .product-name-row.low-alert td { background: rgba(216,48,48,0.03); }
+
+  .total-stock-badge { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+  .ts-good { background: rgba(45,158,107,0.1); color: var(--success); }
+  .ts-low  { background: rgba(232,160,32,0.12); color: var(--warning); }
+  .ts-out  { background: rgba(216,48,48,0.1); color: var(--danger); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Summary Stats -->
+<div class="inv-stats" id="inv-stats">
+  <div class="inv-stat">
+    <div class="is-label">Total Products</div>
+    <div class="is-value" id="stat-total">{{ products|length }}</div>
+  </div>
+  <div class="inv-stat">
+    <div class="is-label">In Stock</div>
+    <div class="is-value" style="color:var(--success)" id="stat-instock">—</div>
+  </div>
+  <div class="inv-stat">
+    <div class="is-label">Low Stock ≤ {{ threshold }}</div>
+    <div class="is-value" style="color:var(--warning)" id="stat-low">—</div>
+  </div>
+  <div class="inv-stat">
+    <div class="is-label">Out of Stock (any size)</div>
+    <div class="is-value" style="color:var(--danger)" id="stat-out">—</div>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div class="inv-toolbar">
+  <div class="sw">
+    <span>🔍</span>
+    <input type="text" id="inv-search" placeholder="Search products…" oninput="applyFilter()">
+  </div>
+  <select class="form-control" id="inv-cat" onchange="applyFilter()" style="width:160px;">
+    <option value="">All Categories</option>
+    {% for p in products %}{% if loop.first or p.category not in products[:loop.index0]|map(attribute='category')|list %}
+    <option value="{{ p.category }}">{{ p.category }}</option>
+    {% endif %}{% endfor %}
+  </select>
+  <select class="form-control" id="inv-status" onchange="applyFilter()" style="width:150px;">
+    <option value="">All Status</option>
+    <option value="ok">All In Stock</option>
+    <option value="low">Has Low Stock</option>
+    <option value="out">Has Out of Stock</option>
+  </select>
+  <button class="btn btn-secondary" onclick="window.location.reload()">↻ Refresh</button>
+</div>
+
+<!-- Table -->
+<div class="inv-table-wrap">
+  <table id="inv-table">
+    <thead>
+      <tr>
+        <th>Product / Size</th>
+        <th>Category</th>
+        <th style="width:80px;">Stock</th>
+        <th style="width:90px;">Status</th>
+        <th>Update Stock</th>
+      </tr>
+    </thead>
+    <tbody id="inv-tbody">
+      {% for p in products %}
+      {% set total = p.product_sizes | sum(attribute='stock') %}
+      {% set has_low = p.product_sizes | selectattr('stock', 'le', threshold) | selectattr('stock', 'gt', 0) | list | length > 0 %}
+      {% set has_out = p.product_sizes | selectattr('stock', 'eq', 0) | list | length > 0 %}
+      <tr class="product-name-row {% if has_out or has_low %}low-alert{% endif %}"
+          data-product-id="{{ p.id }}"
+          data-name="{{ p.name.lower() }}"
+          data-cat="{{ p.category }}"
+          data-total="{{ total }}"
+          data-has-low="{{ 'true' if has_low else 'false' }}"
+          data-has-out="{{ 'true' if has_out else 'false' }}">
+        <td colspan="1">
+          <span>{{ p.name }}</span>
+          <span class="total-stock-badge {% if total == 0 %}ts-out{% elif total <= threshold %}ts-low{% else %}ts-good{% endif %}" style="margin-left:8px;">
+            Total: {{ total }}
+          </span>
+        </td>
+        <td><span class="badge-category">{{ p.category }}</span></td>
+        <td colspan="3"></td>
+      </tr>
+      {% for ps in p.product_sizes %}
+      {% set sz_cls = 'out' if ps.stock == 0 else ('low' if ps.stock <= threshold else 'good') %}
+      <tr class="size-rows" data-product-id="{{ p.id }}" data-size="{{ ps.size }}">
+        <td>
+          <div class="size-label-col">
+            <span class="size-dot dot-{{ sz_cls }}"></span>
+            {{ ps.size }}
+          </div>
+        </td>
+        <td></td>
+        <td>
+          <span style="font-weight:700;color:{% if ps.stock == 0 %}var(--danger){% elif ps.stock <= threshold %}var(--warning){% else %}var(--success){% endif %};">
+            {{ ps.stock }}
+          </span>
+        </td>
+        <td>
+          {% if ps.stock == 0 %}
+            <span class="badge badge-danger">Out</span>
+          {% elif ps.stock <= threshold %}
+            <span class="badge badge-warning">⚠ Low</span>
+          {% else %}
+            <span class="badge badge-success">✓ Good</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="stock-edit-wrap">
+            <input type="number" class="stock-inline-input"
+                   value="{{ ps.stock }}" min="0"
+                   id="stock-{{ p.id }}-{{ ps.size|replace(' ', '_') }}">
+            <button class="btn-update-stock"
+                    onclick="updateStock({{ p.id }}, '{{ ps.size }}', this)">Update</button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+      {% else %}
+      <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted);">
+        No products found. <a href="{{ url_for('main.products') }}">Add products first →</a>
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  const THRESHOLD = {{ threshold }};
+
+  function computeStats() {
+    const nameRows = document.querySelectorAll('tr.product-name-row[data-product-id]');
+    let total = 0, instock = 0, low = 0, out = 0;
+    nameRows.forEach(row => {
+      if (row.style.display === 'none') return;
+      total++;
+      const t = parseInt(row.dataset.total || 0);
+      const hasLow = row.dataset.hasLow === 'true';
+      const hasOut = row.dataset.hasOut === 'true';
+      if (t === 0) out++;
+      else if (hasOut) out++;
+      else if (hasLow) low++;
+      else instock++;
+    });
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-instock').textContent = instock;
+    document.getElementById('stat-low').textContent = low;
+    document.getElementById('stat-out').textContent = out;
+  }
+
+  function applyFilter() {
+    const search = document.getElementById('inv-search').value.toLowerCase();
+    const cat = document.getElementById('inv-cat').value;
+    const status = document.getElementById('inv-status').value;
+
+    const nameRows = document.querySelectorAll('tr.product-name-row[data-product-id]');
+    nameRows.forEach(nameRow => {
+      const pid = nameRow.dataset.productId;
+      const name = nameRow.dataset.name || '';
+      const rowCat = nameRow.dataset.cat || '';
+      const total = parseInt(nameRow.dataset.total || 0);
+      const hasLow = nameRow.dataset.hasLow === 'true';
+      const hasOut = nameRow.dataset.hasOut === 'true';
+
+      const matchSearch = !search || name.includes(search) || rowCat.toLowerCase().includes(search);
+      const matchCat = !cat || rowCat === cat;
+      const matchStatus = !status ||
+        (status === 'out' && hasOut) ||
+        (status === 'low' && hasLow) ||
+        (status === 'ok' && !hasOut && !hasLow);
+
+      const show = matchSearch && matchCat && matchStatus;
+      nameRow.style.display = show ? '' : 'none';
+
+      // Also hide/show size rows for this product
+      document.querySelectorAll(`tr.size-rows[data-product-id="${pid}"]`).forEach(r => {
+        r.style.display = show ? '' : 'none';
+      });
+    });
+
+    computeStats();
+  }
+
+  async function updateStock(productId, size, btn) {
+    const inputId = `stock-${productId}-${size.replace(/ /g, '_')}`;
+    const input = document.getElementById(inputId);
+    const newStock = parseInt(input.value);
+    if (isNaN(newStock) || newStock < 0) { showToast('Invalid stock value', 'error'); return; }
+
+    btn.disabled = true; btn.textContent = '…';
+    try {
+      const res = await fetch('/api/inventory/update', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ product_id: productId, size: size, stock: newStock })
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Update failed', 'error'); return; }
+
+      // Update the size row's display
+      const sizeRow = document.querySelector(`tr.size-rows[data-product-id="${productId}"][data-size="${size}"]`);
+      if (sizeRow) {
+        const stockSpan = sizeRow.querySelector('td:nth-child(3) span');
+        const badgeTd = sizeRow.querySelector('td:nth-child(4)');
+        const dot = sizeRow.querySelector('.size-dot');
+
+        if (stockSpan) {
+          stockSpan.textContent = newStock;
+          stockSpan.style.color = newStock === 0 ? 'var(--danger)' : (newStock <= THRESHOLD ? 'var(--warning)' : 'var(--success)');
+        }
+        if (badgeTd) {
+          if (newStock === 0) badgeTd.innerHTML = '<span class="badge badge-danger">Out</span>';
+          else if (newStock <= THRESHOLD) badgeTd.innerHTML = '<span class="badge badge-warning">⚠ Low</span>';
+          else badgeTd.innerHTML = '<span class="badge badge-success">✓ Good</span>';
+        }
+        if (dot) {
+          dot.className = 'size-dot ' + (newStock === 0 ? 'dot-out' : newStock <= THRESHOLD ? 'dot-low' : 'dot-good');
+        }
+      }
+
+      // Update product name row total badge
+      const nameRow = document.querySelector(`tr.product-name-row[data-product-id="${productId}"]`);
+      if (nameRow && data.product) {
+        const newTotal = (data.product.sizes || []).reduce((s, sz) => s + sz.stock, 0);
+        nameRow.dataset.total = newTotal;
+        const badge = nameRow.querySelector('.total-stock-badge');
+        if (badge) {
+          badge.textContent = `Total: ${newTotal}`;
+          badge.className = 'total-stock-badge ' + (newTotal === 0 ? 'ts-out' : newTotal <= THRESHOLD ? 'ts-low' : 'ts-good');
+        }
+        // Update data attributes for stats
+        const hasLow = (data.product.sizes || []).some(sz => sz.stock > 0 && sz.stock <= THRESHOLD);
+        const hasOut = (data.product.sizes || []).some(sz => sz.stock === 0);
+        nameRow.dataset.hasLow = hasLow;
+        nameRow.dataset.hasOut = hasOut;
+      }
+
+      computeStats();
+      showToast(`${size} stock updated to ${newStock}`, 'success');
+    } catch(e) {
+      showToast('Network error', 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Update';
+    }
+  }
+
+  // Allow Enter key in stock inputs
+  document.querySelectorAll('.stock-inline-input').forEach(input => {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const btn = input.nextElementSibling;
+        if (btn) btn.click();
+      }
+    });
+  });
+
+  computeStats();
+</script>
+{% endblock %}

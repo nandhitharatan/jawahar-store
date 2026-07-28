@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Jawahar Enterprises{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block extra_css %}{% endblock %}
+  <style>
+    :root {
+      --sidebar-bg: #111111;
+      --sidebar-width: 240px;
+      --accent: #D85A30;
+      --accent-light: #f0724a;
+      --accent-dim: rgba(216,90,48,0.12);
+      --bg: #f4f4f2;
+      --surface: #ffffff;
+      --surface-2: #f9f9f7;
+      --border: #e8e8e4;
+      --text: #1a1a1a;
+      --text-muted: #7a7a72;
+      --text-light: #b0b0a8;
+      --success: #2d9e6b;
+      --warning: #e8a020;
+      --danger: #d83030;
+      --info: #2d6fb0;
+      --radius: 10px;
+      --radius-sm: 6px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+      --font: 'DM Sans', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--text); }
+
+    /* ── Layout ── */
+    .app-layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+      position: relative;
+      z-index: 100;
+    }
+    .sidebar-logo {
+      padding: 24px 20px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .sidebar-logo .logo-mark {
+      width: 36px; height: 36px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 16px; color: #fff;
+      margin-bottom: 10px;
+    }
+    .sidebar-logo .store-name {
+      font-size: 13px; font-weight: 600; color: #fff; line-height: 1.3;
+    }
+    .sidebar-logo .store-tagline {
+      font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 2px;
+    }
+    .sidebar-nav { padding: 16px 0; flex: 1; }
+    .nav-section-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: rgba(255,255,255,0.25);
+      padding: 10px 20px 6px;
+    }
+    .nav-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 20px;
+      color: rgba(255,255,255,0.5);
+      text-decoration: none;
+      font-size: 13.5px; font-weight: 500;
+      border-left: 3px solid transparent;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    .nav-link:hover { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.04); }
+    .nav-link.active {
+      color: #fff;
+      background: rgba(216,90,48,0.15);
+      border-left-color: var(--accent);
+    }
+    .nav-link .nav-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      font-size: 11px; color: rgba(255,255,255,0.2);
+    }
+
+    /* ── Main Content ── */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .top-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .top-bar-title { font-size: 16px; font-weight: 600; color: var(--text); }
+    .top-bar-right { display: flex; align-items: center; gap: 12px; }
+    .top-bar-date { font-size: 12px; color: var(--text-muted); }
+    .page-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .card-header {
+      padding: 18px 20px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .card-title { font-size: 14px; font-weight: 600; }
+    .card-body { padding: 20px; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 8px 16px; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 500; font-family: var(--font);
+      border: none; cursor: pointer; transition: all 0.15s ease;
+      text-decoration: none;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-light); }
+    .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-sm { padding: 5px 11px; font-size: 12px; }
+    .btn-icon { padding: 7px; }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 3px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 500;
+    }
+    .badge-success { background: rgba(45,158,107,0.12); color: var(--success); }
+    .badge-warning { background: rgba(232,160,32,0.12); color: var(--warning); }
+    .badge-danger { background: rgba(216,48,48,0.12); color: var(--danger); }
+    .badge-info { background: rgba(45,111,176,0.12); color: var(--info); }
+    .badge-neutral { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+         color: var(--text-muted); padding: 10px 16px; text-align: left;
+         border-bottom: 1px solid var(--border); background: var(--surface-2); }
+    td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface-2); }
+
+    /* ── Forms ── */
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 12px; font-weight: 500; color: var(--text-muted);
+                  margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .form-control {
+      width: 100%; padding: 9px 12px;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      font-size: 13.5px; font-family: var(--font); color: var(--text);
+      background: var(--surface); outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .form-control:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+    select.form-control { cursor: pointer; }
+    textarea.form-control { resize: vertical; min-height: 80px; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; opacity: 0; pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface); border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      width: 90%; max-width: 520px;
+      max-height: 90vh; overflow-y: auto;
+      transform: translateY(10px);
+      transition: transform 0.2s ease;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-title { font-size: 15px; font-weight: 600; }
+    .modal-close {
+      width: 28px; height: 28px; border: none; background: var(--surface-2);
+      border-radius: 6px; cursor: pointer; font-size: 16px; color: var(--text-muted);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-body { padding: 20px 24px; }
+    .modal-footer { padding: 16px 24px 20px; display: flex; gap: 10px; justify-content: flex-end;
+                    border-top: 1px solid var(--border); }
+
+    /* ── Toast ── */
+    #toast-container {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .toast {
+      background: #1a1a1a; color: #fff;
+      padding: 12px 18px; border-radius: 8px;
+      font-size: 13px; font-weight: 500;
+      box-shadow: var(--shadow-md);
+      display: flex; align-items: center; gap: 10px;
+      animation: slideInRight 0.3s ease;
+      border-left: 4px solid var(--accent);
+    }
+    .toast.success { border-left-color: var(--success); }
+    .toast.error { border-left-color: var(--danger); }
+    @keyframes slideInRight {
+      from { transform: translateX(40px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* ── Utils ── */
+    .text-muted { color: var(--text-muted); }
+    .text-danger { color: var(--danger); }
+    .text-success { color: var(--success); }
+    .text-accent { color: var(--accent); }
+    .fw-600 { font-weight: 600; }
+    .fw-700 { font-weight: 700; }
+    .mb-0 { margin-bottom: 0; }
+    .mb-16 { margin-bottom: 16px; }
+    .mb-24 { margin-bottom: 24px; }
+    .d-flex { display: flex; }
+    .align-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .gap-8 { gap: 8px; }
+    .gap-12 { gap: 12px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .full-width { width: 100%; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">JE</div>
+      <div class="store-name">Jawahar Enterprises</div>
+      <div class="store-tagline">Women's Clothing Store</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+        <span class="nav-icon">⊞</span> Dashboard
+      </a>
+      <a href="{{ url_for('main.billing') }}" class="nav-link {% if request.endpoint == 'main.billing' %}active{% endif %}">
+        <span class="nav-icon">🧾</span> Billing
+      </a>
+
+      <div class="nav-section-label" style="margin-top:8px;">Store</div>
+      <a href="{{ url_for('main.products') }}" class="nav-link {% if request.endpoint == 'main.products' %}active{% endif %}">
+        <span class="nav-icon">👗</span> Products
+      </a>
+      <a href="{{ url_for('main.inventory') }}" class="nav-link {% if request.endpoint == 'main.inventory' %}active{% endif %}">
+        <span class="nav-icon">📦</span> Inventory
+      </a>
+
+      <div class="nav-section-label" style="margin-top:8px;">Reports</div>
+      <a href="{{ url_for('main.sales_report') }}" class="nav-link {% if request.endpoint == 'main.sales_report' %}active{% endif %}">
+        <span class="nav-icon">📊</span> Sales Report
+      </a>
+
+      <div class="nav-section-label" style="margin-top:8px;">Config</div>
+      <a href="{{ url_for('main.settings') }}" class="nav-link {% if request.endpoint == 'main.settings' %}active{% endif %}">
+        <span class="nav-icon">⚙</span> Settings
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      v1.0.0 &nbsp;·&nbsp; Jawahar Enterprises
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-content">
+    <div class="top-bar">
+      <div class="top-bar-title">{% block page_title %}Dashboard{% endblock %}</div>
+      <div class="top-bar-right">
+        <div class="top-bar-date" id="live-clock"></div>
+        <div style="width:32px;height:32px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:13px;">J</div>
+      </div>
+    </div>
+
+    <div class="page-body">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<!-- Global Product Size Chart Modal -->
+<div class="modal-overlay" id="global-size-chart-modal">
+  <div class="modal modal-lg" style="max-width: 820px !important;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-product-title" style="display:flex; align-items:center; gap:8px;">
+          <span>📏</span> Product Size Chart
+        </div>
+        <div style="font-size:12px; color:var(--text-muted); margin-top:2px;" id="modal-product-subtitle">Garment Measurements</div>
+      </div>
+      <button type="button" class="modal-close" onclick="closeGlobalSizeChartModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 16px 20px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+        <span style="font-size:12.5px; color:var(--text-muted);" id="modal-sc-desc">Applicable measurements per size</span>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn btn-secondary btn-sm" id="modal-unit-in" onclick="toggleModalUnit('in')" style="padding:4px 10px; font-size:12px; background:var(--accent); color:#fff;">Inches (in)</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="modal-unit-cm" onclick="toggleModalUnit('cm')" style="padding:4px 10px; font-size:12px;">cm</button>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table class="size-stock-table" style="width:100%; text-align:left;">
+          <thead id="modal-size-chart-thead">
+            <tr>
+              <th>Size</th>
+            </tr>
+          </thead>
+          <tbody id="modal-size-chart-tbody">
+            <tr><td style="text-align:center; padding:20px; color:var(--text-muted);">Select a product to view size chart</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:11.5px; color:var(--text-muted); margin-top:12px; font-style:italic;" id="modal-sc-note">
+        * Garment Measurements in Inches
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeGlobalSizeChartModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Measurement labels map
+  const MEASUREMENT_LABELS = {
+    'bust': 'Bust/Chest',
+    'across_shoulder': 'Across Shoulder',
+    'sleeve_length': 'Sleeve Length',
+    'armhole': 'Armhole',
+    'neck_width': 'Neck Width',
+    'waist': 'Waist',
+    'hips': 'Hips',
+    'inseam_length': 'Inseam Length',
+    'outseam_length': 'Outseam Length',
+    'thigh_width': 'Thigh Width',
+    'knee_width': 'Knee Width',
+    'bottom_width': 'Bottom Width',
+    'front_length': 'Front Length',
+    'back_length': 'Back Length',
+    'dress_length': 'Dress Length',
+    'kurta_length': 'Kurta Length',
+    'dupatta_length': 'Dupatta Length',
+    'dupatta_width': 'Dupatta Width',
+    'rise': 'Rise',
+    'ankle_width': 'Ankle Width'
+  };
+
+  // Live clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('live-clock').textContent =
+      now.toLocaleDateString('en-IN', {weekday:'short', day:'numeric', month:'short'}) +
+      '  ' + now.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // Toast helper
+  function showToast(msg, type = 'default') {
+    const container = document.getElementById('toast-container');
+    const icons = { success: '✓', error: '✕', default: 'ℹ' };
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span>${icons[type] || 'ℹ'}</span> ${msg}`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3500);
+  }
+
+  // Currency formatter
+  function formatCurrency(amount) {
+    return '₹' + parseFloat(amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
+  }
+
+  // Global Product Size Chart Modal logic
+  let modalProductData = null;
+  let modalUnit = 'in';
+
+  async function openGlobalSizeChartModal(productId) {
+    const modal = document.getElementById('global-size-chart-modal');
+    modal.classList.add('open');
+    modalUnit = 'in';
+    toggleModalUnit('in');
+
+    const tbody = document.getElementById('modal-size-chart-tbody');
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:var(--text-muted);">Loading size chart…</td></tr>';
+
+    try {
+      let url = productId ? `/api/product/${productId}/size-chart/modal` : '/api/products';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch size chart');
+      
+      const json = await res.json();
+      if (Array.isArray(json)) {
+        modalProductData = json.length > 0 ? json[0] : null;
+      } else {
+        modalProductData = json;
+      }
+
+      if (modalProductData) {
+        document.getElementById('modal-product-title').innerHTML = `<span>📏</span> ${modalProductData.product_name || modalProductData.name || 'Product'} Size Chart`;
+        document.getElementById('modal-product-subtitle').textContent = `Category: ${modalProductData.category || 'General'}`;
+      }
+      renderModalSizeChart();
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--danger); padding:20px;">Failed to load product size chart</td></tr>`;
+    }
+  }
+
+  function closeGlobalSizeChartModal() {
+    const modal = document.getElementById('global-size-chart-modal');
+    modal.classList.remove('open');
+  }
+
+  function toggleModalUnit(unit) {
+    modalUnit = unit;
+    const btnIn = document.getElementById('modal-unit-in');
+    const btnCm = document.getElementById('modal-unit-cm');
+    if (btnIn && btnCm) {
+      btnIn.style.background = modalUnit === 'in' ? 'var(--accent)' : '';
+      btnIn.style.color = modalUnit === 'in' ? '#fff' : '';
+      btnCm.style.background = modalUnit === 'cm' ? 'var(--accent)' : '';
+      btnCm.style.color = modalUnit === 'cm' ? '#fff' : '';
+    }
+    if (modalProductData) renderModalSizeChart();
+  }
+
+  function renderModalSizeChart() {
+    const thead = document.getElementById('modal-size-chart-thead');
+    const tbody = document.getElementById('modal-size-chart-tbody');
+    const factor = modalUnit === 'cm' ? 2.54 : 1.0;
+
+    const note = document.getElementById('modal-sc-note');
+    if (note) {
+      note.textContent = modalUnit === 'cm'
+        ? '* Garment Measurements in Centimeters'
+        : '* Garment Measurements in Inches';
+    }
+
+    if (!modalProductData || (!modalProductData.size_charts && !modalProductData.sizes)) {
+      thead.innerHTML = '<tr><th>Size</th></tr>';
+      tbody.innerHTML = '<tr><td style="text-align:center; padding:16px;">No size chart configured for this product.</td></tr>';
+      return;
+    }
+
+    // Determine active measurement columns
+    const rawMeasures = (modalProductData.applicable_measurements || '').split(',').map(m => m.strip ? m.strip() : m.trim()).filter(Boolean);
+    
+    // Fallback: check keys present in size_charts
+    const charts = modalProductData.size_charts || [];
+    let keys = rawMeasures;
+    if (keys.length === 0 && charts.length > 0) {
+      const sample = charts[0];
+      keys = Object.keys(MEASUREMENT_LABELS).filter(k => sample[k] !== undefined && sample[k] !== null);
+    }
+
+    if (keys.length === 0) {
+      thead.innerHTML = '<tr><th>Size</th></tr>';
+      tbody.innerHTML = '<tr><td style="text-align:center; padding:16px; color:var(--text-muted);">No measurement fields checked for this product size chart.</td></tr>';
+      return;
+    }
+
+    // Header HTML
+    thead.innerHTML = `
+      <tr>
+        <th style="width:90px;">Size</th>
+        ${keys.map(k => `<th>${MEASUREMENT_LABELS[k] || k} (${modalUnit})</th>`).join('')}
+      </tr>
+    `;
+
+    if (charts.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="${keys.length + 1}" style="text-align:center; padding:16px; color:var(--text-muted);">No size measurement rows added.</td></tr>`;
+      return;
+    }
+
+    // Body rows HTML
+    tbody.innerHTML = charts.map(row => `
+      <tr>
+        <td style="font-weight:700; font-size:13px;"><span class="size-tag">${row.size}</span></td>
+        ${keys.map(k => {
+          const rawVal = row[k];
+          if (rawVal === null || rawVal === undefined || rawVal === '') return '<td>-</td>';
+          return `<td>${(parseFloat(rawVal) * factor).toFixed(1)}</td>`;
+        }).join('')}
+      </tr>
+    `).join('');
+  }
+</script>
+
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>
