@@ -1,0 +1,12 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "jawahar-store",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "jawahar-store-",
+  "start_url": "/",
+  "theme_color": "#ffffff",
+  "id": "jawaharstore"
+}
