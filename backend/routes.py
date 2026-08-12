@@ -448,8 +448,21 @@ def api_update_product_size_chart(product_id):
 
 
 
-# ─── STATIC FILES ─────────────────────────────────────────────────────────────────
+# ─── STATIC & PWA ROUTES ──────────────────────────────────────────────────────────
 
 @main.route('/static/images/products/<filename>')
 def product_image(filename):
     return send_from_directory(PRODUCT_IMG_FOLDER, filename)
+
+
+@main.route('/sw.js')
+def pwa_service_worker():
+    static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'static'))
+    return send_from_directory(static_dir, 'sw.js', mimetype='application/javascript')
+
+
+@main.route('/manifest.json')
+def pwa_manifest():
+    static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'static'))
+    return send_from_directory(static_dir, 'manifest.json', mimetype='application/json')
+
