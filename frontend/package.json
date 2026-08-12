@@ -25,16 +25,9 @@
     "files": [
       "main.js",
       "loading.html",
-      "run.py",
-      "app.py",
-      "models.py",
-      "routes.py",
-      "database.py",
-      "helpers.py",
-      "requirements.txt",
       "templates/**/*",
       "static/**/*",
-      "store.db"
+      "../backend/**/*"
     ],
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }],

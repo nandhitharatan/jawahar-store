@@ -9,7 +9,7 @@ import os
 import json
 
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
-PRODUCT_IMG_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'images', 'products')
+PRODUCT_IMG_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'static', 'images', 'products'))
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

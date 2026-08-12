@@ -11,10 +11,11 @@ const FLASK_URL = `http://127.0.0.1:${FLASK_PORT}`;
 // ── Start Flask Backend ────────────────────────────────────────────────────────
 function startFlask() {
   const pythonPath = process.platform === 'win32' ? 'python' : 'python3';
-  const scriptPath = path.join(__dirname, 'run.py');
+  const backendDir = path.join(__dirname, '..', 'backend');
+  const scriptPath = path.join(backendDir, 'run.py');
 
   flaskProcess = spawn(pythonPath, [scriptPath], {
-    cwd: __dirname,
+    cwd: backendDir,
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });
