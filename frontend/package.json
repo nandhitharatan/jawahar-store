@@ -7,41 +7,12 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "build-win": "electron-builder --win --x64",
-    "build-mac": "electron-builder --mac",
-    "dist": "electron-builder"
+    "build-win": "node build.js",
+    "dist": "node build.js"
   },
   "dependencies": {},
   "devDependencies": {
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1"
-  },
-  "build": {
-    "appId": "com.jawahar.storemanager",
-    "productName": "Jawahar Enterprises",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "main.js",
-      "loading.html",
-      "templates/**/*",
-      "static/**/*",
-      "../backend/**/*"
-    ],
-    "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
-      "icon": "static/images/icon.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Jawahar Enterprises"
-    },
-    "extraResources": [
-      { "from": ".", "to": ".", "filter": ["**/*.py", "**/*.db", "templates/**", "static/**"] }
-    ]
   }
 }

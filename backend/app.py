@@ -1,24 +1,45 @@
 import os
+import sys
 from flask import Flask
 
 
+def get_data_dir():
+    """Get writable user data directory for SQLite database and uploads."""
+    if 'JAWAHAR_STORE_DATA_DIR' in os.environ and os.environ['JAWAHAR_STORE_DATA_DIR'].strip():
+        data_dir = os.environ['JAWAHAR_STORE_DATA_DIR']
+    else:
+        app_data = os.getenv('APPDATA') or os.getenv('LOCALAPPDATA') or os.path.expanduser('~')
+        data_dir = os.path.join(app_data, 'JawaharStore')
+    os.makedirs(data_dir, exist_ok=True)
+    return data_dir
+
+
 def create_app():
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    frontend_dir = os.path.abspath(os.path.join(basedir, '..', 'frontend'))
-    template_dir = os.path.join(frontend_dir, 'templates')
-    static_dir = os.path.join(frontend_dir, 'static')
+    if getattr(sys, 'frozen', False):
+        # Running inside PyInstaller bundle
+        bundle_dir = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
+        template_dir = os.path.join(bundle_dir, 'templates')
+        static_dir = os.path.join(bundle_dir, 'static')
+    else:
+        basedir = os.path.abspath(os.path.dirname(__file__))
+        frontend_dir = os.path.abspath(os.path.join(basedir, '..', 'frontend'))
+        template_dir = os.path.join(frontend_dir, 'templates')
+        static_dir = os.path.join(frontend_dir, 'static')
 
     app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 
     app.config['SECRET_KEY'] = 'jawahar-enterprises-secret-2024'
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(basedir, "store.db")}'
+
+    # Writable SQLite database path in user AppData folder
+    data_dir = get_data_dir()
+    db_path = os.path.join(data_dir, 'store.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path.replace("\\", "/")}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    upload_folder = os.path.join(static_dir, 'uploads')
+    upload_folder = os.path.join(data_dir, 'uploads')
     os.makedirs(upload_folder, exist_ok=True)
 
     # Run DB migration BEFORE creating tables (handles old schema → new schema)
-    db_path = os.path.join(basedir, 'store.db')
     if os.path.exists(db_path):
         try:
             from migrate import migrate

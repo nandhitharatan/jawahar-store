@@ -9,7 +9,12 @@ import os
 import json
 
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
-PRODUCT_IMG_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'static', 'images', 'products'))
+
+def get_product_img_folder():
+    from app import get_data_dir
+    folder = os.path.join(get_data_dir(), 'uploads')
+    os.makedirs(folder, exist_ok=True)
+    return folder
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -20,16 +25,16 @@ def save_product_image(file):
         return None
     if not allowed_file(file.filename):
         return None
-    os.makedirs(PRODUCT_IMG_FOLDER, exist_ok=True)
+    folder = get_product_img_folder()
     ext = file.filename.rsplit('.', 1)[1].lower()
     filename = f"{uuid.uuid4().hex}.{ext}"
-    file.save(os.path.join(PRODUCT_IMG_FOLDER, filename))
+    file.save(os.path.join(folder, filename))
     return filename
 
 def delete_product_image(filename):
     """Delete a product image file from disk."""
     if filename:
-        path = os.path.join(PRODUCT_IMG_FOLDER, filename)
+        path = os.path.join(get_product_img_folder(), filename)
         if os.path.exists(path):
             os.remove(path)
 
@@ -452,7 +457,7 @@ def api_update_product_size_chart(product_id):
 
 @main.route('/static/images/products/<filename>')
 def product_image(filename):
-    return send_from_directory(PRODUCT_IMG_FOLDER, filename)
+    return send_from_directory(get_product_img_folder(), filename)
 
 
 @main.route('/sw.js')

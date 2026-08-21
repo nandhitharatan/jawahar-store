@@ -25,24 +25,26 @@ A modern, high-performance **Desktop Retail & Store Management Application** bui
 ```
 jawahar-store/
 ├── backend/                  # Python Flask Backend API & Database
-│   ├── app.py                # Application Factory & Configuration
+│   ├── app.py                # Application Factory & Writable Data Directory Logic
 │   ├── database.py           # SQLAlchemy Database Instance
 │   ├── models.py             # Database Models (Product, ProductSizeChart, Transaction, etc.)
 │   ├── routes.py             # REST API Endpoints & HTML Page Routes
 │   ├── helpers.py            # Sales Logic, Invoice Generators & Reports
 │   ├── migrate.py            # SQLite Database Schema Migration Utility
-│   ├── run.py                # Flask Dev Server Entry Point (Port 5000)
-│   ├── requirements.txt      # Python Dependencies
-│   └── store.db              # SQLite Database File
+│   ├── run.py                # Flask Entry Point (Port 5000)
+│   ├── backend.spec          # PyInstaller Executable Spec File
+│   ├── requirements.txt      # Python Dependencies (Includes PyInstaller)
+│   └── store.db              # Local Development SQLite Database File
 │
 ├── frontend/                 # Desktop GUI Shell, Templates & Assets
 │   ├── main.js               # Electron Main Process (Launches Backend Server)
 │   ├── loading.html          # Application Splash Screen
-│   ├── package.json          # Node & Electron Dependencies
-│   ├── static/               # Styling Assets & Image Uploads
+│   ├── package.json          # Node & Electron Dependencies (Portable .exe Config)
+│   ├── static/               # Styling Assets, PWA Manifest & Icons
 │   │   ├── css/              # Main CSS Stylesheet
 │   │   ├── images/           # Application Icons & Product Uploads
-│   │   └── uploads/          # User-uploaded files
+│   │   ├── manifest.json     # PWA Manifest
+│   │   └── sw.js             # Service Worker
 │   └── templates/            # Jinja2 Dynamic HTML Templates
 │       ├── base.html         # Master Base Layout & Sidebar Navigation
 │       ├── billing.html      # Point of Sale & Checkout Screen
@@ -61,15 +63,15 @@ jawahar-store/
 ## 💻 Tech Stack
 
 - **Desktop Shell**: Electron 28 (`electron`, `electron-builder`)
-- **Backend Framework**: Python 3, Flask 3.1
+- **Backend Framework**: Python 3, Flask 3.1, PyInstaller
 - **Database & ORM**: SQLite 3, Flask-SQLAlchemy 3.1, SQLAlchemy 2.0
 - **Frontend / Templating**: HTML5, Vanilla CSS3, JavaScript (ES6+), Jinja2
 
 ---
 
-## 🚀 How to Run
+## 🚀 Development & Local Run
 
-### Option 1: Electron Desktop App (Recommended)
+### Option 1: Electron Desktop App (Development Mode)
 
 1. Navigate to the `frontend` folder:
    ```bash
@@ -112,16 +114,44 @@ jawahar-store/
 
 ---
 
-## 📦 Building Executable (.exe)
+## 📦 Building Standalone Portable `.exe`
 
-To build a standalone Windows executable:
+To build a **single portable `.exe`** that runs on any Windows machine with **no Python, no Node, no internet, and no installation step required**:
 
-```bash
-cd frontend
-npm run build-win
-```
+### Step 1: Package Flask Backend with PyInstaller
 
-The output installer/exe will be generated in `frontend/dist/`.
+1. Navigate to the `backend` folder and install requirements:
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   ```
 
+2. Compile `run.py` into a standalone `backend.exe`:
+   ```bash
+   pyinstaller backend.spec
+   ```
+   *This generates `backend/dist/backend.exe`.*
 
-link:`https://jawahar-store-1.onrender.com`
+---
+
+### Step 2: Build Single Portable Electron Executable
+
+1. Navigate to the `frontend` folder:
+   ```bash
+   cd ../frontend
+   npm install
+   ```
+
+2. Packaging the single portable `.exe`:
+   ```bash
+   npm run build-win
+   ```
+
+3. Your portable executable will be placed in `frontend/dist/`:
+   `Jawahar Enterprises 1.0.0 Portable.exe`
+
+Double-click `Jawahar Enterprises 1.0.0 Portable.exe` on any Windows PC to run the full application offline! All data and uploaded media will be automatically saved locally in `%APPDATA%\JawaharStore\store.db`.
+
+---
+
+Live Web Version: [https://jawahar-store-1.onrender.com](https://jawahar-store-1.onrender.com)
