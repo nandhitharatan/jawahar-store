@@ -116,9 +116,19 @@ function createWindow() {
     }
   );
 
+  // Allow internal popup windows (for PDF export & receipt printing), open external web URLs in default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: 'deny' };
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      if (!url.startsWith(FLASK_URL)) {
+        shell.openExternal(url);
+        return { action: 'deny' };
+      }
+    }
+    return { action: 'allow' };
+  });
+
+  mainWindow.webContents.on('did-create-window', (childWindow) => {
+    childWindow.setMenu(null);
   });
 
   mainWindow.on('closed', () => {

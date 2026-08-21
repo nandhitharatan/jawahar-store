@@ -523,10 +523,17 @@
 
   function printInvoice() {
     const content = document.getElementById('invoice-body').innerHTML;
-    const win = window.open('', '_blank', 'width=400,height=600');
-    win.document.write(`<html><head><title>Invoice</title><style>body{font-family:sans-serif;padding:20px;font-size:13px;}table{width:100%;border-collapse:collapse;}td,th{padding:6px 8px;border-bottom:1px solid #eee;}</style></head><body>${content}</body></html>`);
+    const win = window.open('', '_blank', 'width=480,height=700');
+    if (!win) {
+      alert('Could not open print invoice window.');
+      return;
+    }
+    win.document.write(`<html><head><title>Invoice - Jawahar Enterprises</title><style>@page{size:auto;margin:10mm;}body{font-family:sans-serif;padding:16px;font-size:13px;color:#111;}table{width:100%;border-collapse:collapse;}td,th{padding:6px 8px;border-bottom:1px solid #eee;}</style></head><body>${content}</body></html>`);
     win.document.close();
-    win.print();
+    setTimeout(() => {
+      win.focus();
+      win.print();
+    }, 300);
   }
 
   loadProducts();
